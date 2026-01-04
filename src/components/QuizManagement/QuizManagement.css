@@ -1,0 +1,232 @@
+
+/**
+ * QuizManagement Styles
+ */
+
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.quiz-title {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--spacing-xs);
+}
+
+.quiz-subtitle {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Controls */
+.table-controls {
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+  max-width: 400px;
+}
+
+.search-input {
+  width: 100%;
+  padding-left: 36px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+}
+
+.filter-select {
+  min-width: 150px;
+}
+
+/* Table Card */
+.quiz-card {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.quiz-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.quiz-table th {
+  background-color: var(--bg-tertiary);
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.quiz-table td {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-body);
+  font-size: var(--font-size-sm);
+  vertical-align: middle;
+}
+
+.quiz-table tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.quiz-name {
+  font-weight: 500;
+  color: var(--text-heading);
+}
+
+.quiz-category {
+  color: var(--text-muted);
+}
+
+/* Difficulty Badges */
+.difficulty-badge {
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+.difficulty--beginner { color: var(--accent-green); }
+.difficulty--intermediate { color: var(--accent-orange); }
+.difficulty--advanced { color: var(--accent-red); }
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge--published {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--accent-blue);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.status-badge--draft {
+  background-color: rgba(148, 163, 184, 0.1);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.status-badge--review {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--accent-orange);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.status-badge--archived {
+  background-color: rgba(17, 24, 39, 0.5);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* Pass Rate Bar */
+.pass-rate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.pass-rate-val {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.pass-rate-bar {
+  width: 60px;
+  height: 4px;
+  background-color: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.pass-rate-fill {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* Actions */
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background-color: var(--bg-primary);
+  color: var(--text-heading);
+}
+
+.btn-icon--danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--accent-red);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+}
+
+.pagination-info {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .quiz-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+}

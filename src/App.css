@@ -1,0 +1,69 @@
+
+/**
+ * App Layout Styles
+ * Defines the main grid/flex structure of the dashboard
+ */
+
+.app {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+/* Main Content Area */
+.app-main {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  transition: margin-left var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Container for page content */
+.app-container {
+  padding: var(--spacing-lg);
+  flex: 1;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Content Sections */
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* Placeholder for empty sections */
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-color);
+  padding: var(--spacing-xl);
+  text-align: center;
+}
+
+.placeholder-content h2 {
+  color: var(--text-heading);
+  margin-bottom: var(--spacing-md);
+}
+
+.placeholder-content p {
+  color: var(--text-muted);
+}
+
+/* Responsive Layout */
+@media (max-width: 1024px) {
+  .app-main {
+    margin-left: 0;
+  }
+  
+  .app-container {
+    padding: var(--spacing-md);
+  }
+}

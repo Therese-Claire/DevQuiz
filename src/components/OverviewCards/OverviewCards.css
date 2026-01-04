@@ -1,0 +1,268 @@
+/**
+ * OverviewCards Styles
+ * Responsive statistics card grid with hover animations and gradient accents
+ */
+
+/* ========================================
+   SECTION CONTAINER
+   ======================================== */
+.overview-cards {
+  margin-bottom: var(--spacing-xl);
+}
+
+/* Section header */
+.overview-cards__header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.overview-cards__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--text-heading);
+  margin: 0 0 var(--spacing-xs);
+}
+
+.overview-cards__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ========================================
+   CARDS GRID
+   ======================================== */
+.overview-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-lg);
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1200px) {
+  .overview-cards__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .overview-cards__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================
+   STAT CARD
+   ======================================== */
+.stat-card {
+  position: relative;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  animation: slideUp var(--transition-normal) ease-out forwards;
+  opacity: 0;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Gradient accent line at top */
+.stat-card__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-primary);
+}
+
+/* Color variants for accent */
+.stat-card--blue .stat-card__accent {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.stat-card--green .stat-card__accent {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.stat-card--purple .stat-card__accent {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+.stat-card--orange .stat-card__accent {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.stat-card--cyan .stat-card__accent {
+  background: linear-gradient(90deg, #06b6d4, #22d3ee);
+}
+
+.stat-card--pink .stat-card__accent {
+  background: linear-gradient(90deg, #ec4899, #f472b6);
+}
+
+/* ========================================
+   CARD CONTENT
+   ======================================== */
+.stat-card__content {
+  display: flex;
+  gap: var(--spacing-md);
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================
+   ICON CONTAINER
+   ======================================== */
+.stat-card__icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.stat-card__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* Icon color variants */
+.stat-card__icon--blue {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.stat-card__icon--green {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.stat-card__icon--purple {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+}
+
+.stat-card__icon--orange {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.stat-card__icon--cyan {
+  background-color: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+}
+
+.stat-card__icon--pink {
+  background-color: rgba(236, 72, 153, 0.15);
+  color: #ec4899;
+}
+
+/* ========================================
+   INFO SECTION
+   ======================================== */
+.stat-card__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Title */
+.stat-card__title {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Value */
+.stat-card__value {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  color: var(--text-heading);
+  line-height: 1.1;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ========================================
+   CHANGE INDICATOR
+   ======================================== */
+.stat-card__change {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+.stat-card__change-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card__change-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stat-card__change-value {
+  font-weight: 600;
+}
+
+.stat-card__change-text {
+  color: var(--text-muted);
+}
+
+/* Positive change (green) */
+.stat-card__change--positive {
+  color: var(--accent-green);
+}
+
+/* Negative change (red) */
+.stat-card__change--negative {
+  color: var(--accent-red);
+}
+
+/* Neutral change */
+.stat-card__change--neutral {
+  color: var(--text-muted);
+}
+
+/* ========================================
+   BACKGROUND DECORATION
+   ======================================== */
+.stat-card__decoration {
+  position: absolute;
+  right: -20px;
+  bottom: -20px;
+  width: 120px;
+  height: 120px;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+.stat-card__decoration svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* ========================================
+   ANIMATION
+   ======================================== */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

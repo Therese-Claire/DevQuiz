@@ -1,0 +1,67 @@
+/**
+ * AnalyticsSection Styles
+ * Responsive grid layout for analytics charts
+ */
+
+/* ========================================
+   SECTION CONTAINER
+   ======================================== */
+.analytics-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+/* Section header */
+.analytics-section__header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.analytics-section__title {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--text-heading);
+  margin: 0 0 var(--spacing-xs);
+}
+
+.analytics-section__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ========================================
+   CHARTS GRID
+   ======================================== */
+.analytics-section__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+}
+
+/* Grid items */
+.analytics-section__item {
+  min-height: 280px;
+}
+
+/* Wide item (spans full width) */
+.analytics-section__item--wide {
+  grid-column: 1 / -1;
+}
+
+/* ========================================
+   RESPONSIVE BREAKPOINTS
+   ======================================== */
+@media (max-width: 1200px) {
+  .analytics-section__grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .analytics-section__item--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-section__item {
+    min-height: 260px;
+  }
+}

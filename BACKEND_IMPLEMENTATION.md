@@ -1,120 +1,159 @@
-# Backend Implementation Guide
+# 🛠️ Backend Implementation Guide
 
-This document serves as a blueprint for the backend developer to build the API and database structure required to support the DevQuiz Admin Dashboard.
+This document defines the backend architecture, database schema, and API structure required for the **DevQuiz Admin Dashboard**.
 
-## Recommended Tech Stack & Plugins
+---
 
-To ensure a robust, scalable, and modern backend, we recommend the following stack:
+## 📚 Table of Contents
 
-- **Runtime**: **Node.js** (v18+)
-- **Framework**: **Express.js** (Fast, unopinionated, minimalist web framework)
-- **Database**: **PostgreSQL** (Relational database for structured user and quiz data)
-- **ORM**: **Prisma** (Next-generation Node.js and TypeScript ORM)
-- **Authentication**: **JWT (jsonwebtoken)** + **bcrypt** (for password hashing)
-- **Validation**: **Zod** or **Joi** (Schema validation)
-- **CORS**: **cors** (Middleware to enable Cross-Origin Resource Sharing)
+1. [Tech Stack](#-recommended-tech-stack)
+2. [Database Schema](#-database-schema)
+3. [API Specification](#-api-specification)
+4. [Functional Requirements](#-functional-requirements)
 
-## Database Schema (Variables)
+---
 
-Below are the required data models based on the frontend `mockData.js`.
+## 💻 Recommended Tech Stack
+
+To build a scalable and maintainable backend, we recommend the following technologies:
+
+| Category       | Technology         | Purpose                                        |
+| :------------- | :----------------- | :--------------------------------------------- |
+| **Runtime**    | **Node.js** (v18+) | JavaScript runtime environment                 |
+| **Framework**  | **Express.js**     | Fast, minimalist web framework                 |
+| **Language**   | **TypeScript**     | Static typing for better maintainability       |
+| **Database**   | **PostgreSQL**     | Relational database for structured consistency |
+| **ORM**        | **Prisma**         | Modern ORM for type-safe database access       |
+| **Auth**       | **JWT + bcrypt**   | Token-based auth & password hashing            |
+| **Validation** | **Zod**            | Runtime schema validation                      |
+
+---
+
+## 🗄️ Database Schema
+
+### 🧩 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    User ||--o{ Notification : receives
+    User ||--o{ QuizAttempt : makes
+    Quiz ||--o{ QuizAttempt : has
+    Category ||--o{ Quiz : contains
+
+    User {
+        int id PK
+        string username
+        string email
+        string password_hash
+        enum role
+        enum status
+        timestamp joined_at
+    }
+
+    Quiz {
+        int id PK
+        string title
+        int category_id FK
+        enum difficulty
+        enum status
+        int total_questions
+    }
+
+    Category {
+        int id PK
+        string name
+        string color
+    }
+```
 
 ### 1. Users Table
 
-Stores administrative and regular user accounts.
+_Manage administrative and regular user accounts._
 
-| Variable Name   | Type       | Description                             | nullable               |
-| :-------------- | :--------- | :-------------------------------------- | :--------------------- |
-| `id`            | UUID / Int | Primary Key                             | No                     |
-| `username`      | String     | Unique username                         | No                     |
-| `email`         | String     | Unique email address                    | No                     |
-| `password_hash` | String     | Hashed password                         | No                     |
-| `role`          | Enum       | `'Admin'`, `'Moderator'`, `'User'`      | No (Default: 'User')   |
-| `status`        | Enum       | `'Active'`, `'Inactive'`, `'Suspended'` | No (Default: 'Active') |
-| `avatar_url`    | String     | URL to profile image                    | Yes                    |
-| `joined_at`     | DateTime   | Timestamp of registration               | No                     |
-| `quizzes_taken` | Int        | Count of quizzes completed              | No (Default: 0)        |
+| Column          | Type     | Nullable | Default    | Description                             |
+| :-------------- | :------- | :------- | :--------- | :-------------------------------------- |
+| `id`            | UUID     | No       | -          | Primary Key                             |
+| `username`      | String   | No       | -          | Unique username                         |
+| `email`         | String   | No       | -          | Unique email address                    |
+| `password_hash` | String   | No       | -          | Bcrypt hashed password                  |
+| `role`          | Enum     | No       | `'User'`   | `'Admin'`, `'Moderator'`, `'User'`      |
+| `status`        | Enum     | No       | `'Active'` | `'Active'`, `'Inactive'`, `'Suspended'` |
+| `avatar_url`    | String   | Yes      | `null`     | Profile image URL                       |
+| `created_at`    | DateTime | No       | `now()`    | Registration timestamp                  |
 
 ### 2. Quizzes Table
 
-Stores quiz metadata and configuration.
+_Stores quiz metadata and configuration._
 
-| Variable Name     | Type       | Description                                        | nullable              |
-| :---------------- | :--------- | :------------------------------------------------- | :-------------------- |
-| `id`              | UUID / Int | Primary Key                                        | No                    |
-| `title`           | String     | Title of the quiz                                  | No                    |
-| `category_id`     | Int        | Foreign Key to Categories                          | No                    |
-| `difficulty`      | Enum       | `'Beginner'`, `'Intermediate'`, `'Advanced'`       | No                    |
-| `status`          | Enum       | `'Published'`, `'Draft'`, `'Review'`, `'Archived'` | No (Default: 'Draft') |
-| `description`     | Text       | Short description of the quiz                      | Yes                   |
-| `total_questions` | Int        | Number of questions in quiz                        | No (Default: 0)       |
-| `total_attempts`  | Int        | Number of times taken                              | No (Default: 0)       |
-| `pass_rate`       | Float      | Calculated percentage (0-100)                      | No (Default: 0.0)     |
-| `created_at`      | DateTime   | Timestamp of creation                              | No                    |
-| `updated_at`      | DateTime   | Timestamp of last update                           | No                    |
+| Column        | Type     | Nullable | Default   | Description                                  |
+| :------------ | :------- | :------- | :-------- | :------------------------------------------- |
+| `id`          | UUID     | No       | -         | Primary Key                                  |
+| `title`       | String   | No       | -         | Quiz Title                                   |
+| `category_id` | Int      | No       | -         | Foreign Key -> `Services`                    |
+| `difficulty`  | Enum     | No       | -         | `'Beginner'`, `'Intermediate'`, `'Advanced'` |
+| `status`      | Enum     | No       | `'Draft'` | `'Published'`, `'Draft'`, `'Archived'`       |
+| `pass_rate`   | Float    | No       | `0.0`     | Calculated pass percentage                   |
+| `updated_at`  | DateTime | No       | `now()`   | Last modified timestamp                      |
 
-### 3. Categories Table
+---
 
-Categorization for quizzes.
+## 🔌 API Specification
 
-| Variable Name | Type   | Description                         | nullable |
-| :------------ | :----- | :---------------------------------- | :------- |
-| `id`          | Int    | Primary Key                         | No       |
-| `name`        | String | Category name (e.g., 'Programming') | No       |
-| `color`       | String | Hex color code (e.g., '#3b82f6')    | No       |
+All API endpoints should follow **RESTful** principles and return JSON responses.
 
-### 4. Notifications Table
+### 🔐 Authentication
 
-System and activity notifications for admins.
+| Method | Endpoint             | Description                          |
+| :----- | :------------------- | :----------------------------------- |
+| `POST` | `/api/auth/login`    | Authenticate user & return **JWT**   |
+| `POST` | `/api/auth/register` | Register a new user account          |
+| `GET`  | `/api/auth/me`       | Get current user profile (Protected) |
 
-| Variable Name | Type       | Description                        | nullable            |
-| :------------ | :--------- | :--------------------------------- | :------------------ |
-| `id`          | Int        | Primary Key                        | No                  |
-| `user_id`     | UUID / Int | Target user (null for system-wide) | Yes                 |
-| `title`       | String     | Notification header                | No                  |
-| `message`     | String     | Body text                          | No                  |
-| `type`        | Enum       | `'user'`, `'quiz'`, `'system'`     | No                  |
-| `is_read`     | Boolean    | Read status                        | No (Default: false) |
-| `created_at`  | DateTime   | Timestamp                          | No                  |
+### 👥 User Management
 
-## API Endpoints
+| Method   | Endpoint         | Description       | Query Params                |
+| :------- | :--------------- | :---------------- | :-------------------------- |
+| `GET`    | `/api/users`     | List users        | `?page=1&limit=10&q=search` |
+| `GET`    | `/api/users/:id` | Get user details  | -                           |
+| `POST`   | `/api/users`     | Create user       | -                           |
+| `PUT`    | `/api/users/:id` | Update user       | -                           |
+| `DELETE` | `/api/users/:id` | Check soft-delete | -                           |
 
-The frontend expects RESTful endpoints. All responses should be in JSON format.
+### 📝 Quiz Management
 
-### 1. Authentication
+| Method  | Endpoint                  | Description      | Query Params                      |
+| :------ | :------------------------ | :--------------- | :-------------------------------- |
+| `GET`   | `/api/quizzes`            | List quizzes     | `?status=Published&diff=Beginner` |
+| `GET`   | `/api/quizzes/:id`        | Get single quiz  | -                                 |
+| `POST`  | `/api/quizzes`            | Creates new quiz | -                                 |
+| `PATCH` | `/api/quizzes/:id/status` | Update status    | -                                 |
 
-- `POST /api/auth/login`: Authenticate admin/user and return JWT.
-- `GET /api/auth/me`: Validate token and return current user details.
+### 📊 Dashboard Statistics
 
-### 2. Dashboard Statistics
+| Method | Endpoint                 | Description                                  |
+| :----- | :----------------------- | :------------------------------------------- |
+| `GET`  | `/api/stats/overview`    | Returns aggregate counts for dashboard cards |
+| `GET`  | `/api/stats/performance` | Returns chart data (attempts over time)      |
 
-- `GET /api/stats/overview`: Returns aggregated data for the 6 overview cards (Total Users, Active Users, etc.).
-- `GET /api/stats/charts`: Returns formatted data for Line, Bar, and Pie charts.
+---
 
-### 3. User Management
+## ⚙️ Functional Requirements
 
-- `GET /api/users`: List users with implementation of **search** (`?q=...`) and **pagination** (`?page=1&limit=10`).
-- `POST /api/users`: Create a new user.
-- `PUT /api/users/:id`: Update user details (role, status).
-- `DELETE /api/users/:id`: Remove or soft-delete a user.
-
-### 4. Quiz Management
-
-- `GET /api/quizzes`: List quizzes with **filtering** (`?status=Published`), **search**, and **pagination**.
-- `POST /api/quizzes`: Create a new quiz.
-- `PUT /api/quizzes/:id`: Update quiz details.
-- `DELETE /api/quizzes/:id`: Archive or delete a quiz.
-
-### 5. Categories
-
-- `GET /api/categories`: List all categories for dropdown menus.
-
-### 6. Notifications
-
-- `GET /api/notifications`: List recent notifications.
-- `PUT /api/notifications/:id/read`: Mark a notification as read.
-
-## Implementation Notes
-
-1.  **Pagination**: The frontend components are built to handle pagination. APIs listing Users and Quizzes **must** return total pages/count metadata.
-2.  **Search**: Search logic should be case-insensitive and look at multiple fields (e.g., Username and Email for users; Title and Category for quizzes).
-3.  **Status Codes**: Use standard HTTP codes (`200` OK, `201` Created, `400` Bad Request, `401` Unauthorized, `500` Server Error).
+1.  **Pagination**: All list endpoints **must** support pagination meta-data:
+    ```json
+    {
+      "data": [...],
+      "meta": {
+        "page": 1,
+        "limit": 10,
+        "total": 50,
+        "totalPages": 5
+      }
+    }
+    ```
+2.  **Search & Filtering**:
+    - **Users**: Search by `username` or `email` (case-insensitive).
+    - **Quizzes**: Filter by `status` or `difficulty`.
+3.  **Error Handling**:
+    - Return consistent error structures: `{ "error": "Message", "code": "ERROR_CODE" }`.
+    - Use status `400` for validation errors and `401`/`403` for auth errors.

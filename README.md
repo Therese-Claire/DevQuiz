@@ -101,4 +101,4 @@ DevQuiz/
 ## View Site
 
 The application is designed to be fully responsive and modern.
-[View Implementation Plan](#) <!-- Placeholder for specific view link if deployment exists -->
+[View Site Locally](http://localhost:5173/)

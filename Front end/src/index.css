@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @plugin "tailwindcss-animate";
@@ -51,4 +52,3 @@ body {
 }
 
 /* Web font import - kept at simple css import or in HTML head. Keeping here for now but usually top of file. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');

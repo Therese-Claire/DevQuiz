@@ -9,6 +9,8 @@ const Login = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -17,12 +19,19 @@ const Login = () => {
         try {
             setLoading(true);
             setError('');
-            const username = email.includes('@') ? email.split('@')[0] : email;
-            const data = await loginUser({ username, password });
+            setEmailError('');
+            setPasswordError('');
+            const data = await loginUser({ email, password });
             login(data.user, data.token);
             navigate('/dashboard');
         } catch (err) {
-            setError('Login failed. Please check your credentials.');
+            if (err.code === 'INVALID_EMAIL') {
+                setEmailError(err.message || 'Email is incorrect.');
+            } else if (err.code === 'INVALID_PASSWORD') {
+                setPasswordError(err.message || 'Password is incorrect.');
+            } else {
+                setError('Login failed. Please check your credentials.');
+            }
         } finally {
             setLoading(false);
         }
@@ -48,6 +57,9 @@ const Login = () => {
                             className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-gray-600"
                             placeholder="you@example.com"
                         />
+                        {emailError && (
+                            <p className="mt-2 text-sm text-red-400">{emailError}</p>
+                        )}
                     </div>
                     <div>
                         <label className="block text-gray-300 mb-2 text-sm font-medium">Password</label>
@@ -59,6 +71,9 @@ const Login = () => {
                             className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-gray-600"
                             placeholder="••••••••"
                         />
+                        {passwordError && (
+                            <p className="mt-2 text-sm text-red-400">{passwordError}</p>
+                        )}
                     </div>
 
                     <button
@@ -77,7 +92,7 @@ const Login = () => {
                 )}
 
                 <div className="mt-6 text-center text-sm text-gray-400">
-                    Don't have an account? {' '}
+                    Don't have an account?{' '}
                     <Link to="/register" className="text-secondary hover:text-white transition-colors font-medium">
                         Register
                     </Link>

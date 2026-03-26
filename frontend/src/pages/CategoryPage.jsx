@@ -1,30 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { categories, topicsByCategory } from '../data/quizMetaData';
-import { fetchQuestions } from '../services/api';
+import { categories as displayCategories, topicsByCategory as displayTopics } from '../data/quizMetaData';
+import { fetchMetadata, fetchCounts } from '../services/api';
 
 const CategoryPage = () => {
     const { categoryId } = useParams();
     const navigate = useNavigate();
-    const [questionCounts, setQuestionCounts] = useState({});
+    const [topics, setTopics] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const category = categories.find(c => c.id === categoryId);
-    const topics = topicsByCategory[categoryId];
+    const category = displayCategories.find(c => c.id === categoryId);
 
     useEffect(() => {
         let isMounted = true;
-        const loadCounts = async () => {
+        const loadMetadata = async () => {
             try {
                 setLoading(true);
-                const { questions } = await fetchQuestions({ categoryId });
-                const counts = questions.reduce((acc, q) => {
-                    acc[q.topicId] = (acc[q.topicId] || 0) + 1;
+                const [meta, countsResp] = await Promise.all([
+                    fetchMetadata(),
+                    fetchCounts(categoryId),
+                ]);
+                const backendTopics = meta.topicsByCategory?.[categoryId] || [];
+                const countsByTopic = (countsResp.counts || []).reduce((acc, t) => {
+                    acc[t.topicId] = t.count;
                     return acc;
                 }, {});
+                const merged = backendTopics.map((t) => {
+                    const display = displayTopics[categoryId]?.find((d) => d.id === t.topicId);
+                    return display || {
+                        id: t.topicId,
+                        name: t.topicId,
+                        description: 'Quiz topic',
+                    };
+                }).map((t) => ({
+                    ...t,
+                    count: countsByTopic[t.id] || 0,
+                }));
                 if (isMounted) {
-                    setQuestionCounts(counts);
+                    setTopics(merged);
                     setError('');
                 }
             } catch (err) {
@@ -35,13 +49,13 @@ const CategoryPage = () => {
                 if (isMounted) setLoading(false);
             }
         };
-        if (categoryId) loadCounts();
+        if (categoryId) loadMetadata();
         return () => {
             isMounted = false;
         };
     }, [categoryId]);
 
-    if (!category || !topics) {
+    if (!category) {
         return <div className="text-white text-center pt-32">Category not found</div>;
     }
 
@@ -79,7 +93,7 @@ const CategoryPage = () => {
                                     {loading ? (
                                         <span className="inline-block w-10 h-4 bg-white/10 rounded animate-pulse" />
                                     ) : (
-                                        `${questionCounts[topic.id] || 0} Qs`
+                                        `${topic.count || 0} Qs`
                                     )}
                                 </span>
                             </div>

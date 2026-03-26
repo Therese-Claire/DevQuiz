@@ -1,16 +1,29 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
+import { createResult } from '../services/api';
 
 const ResultPage = () => {
     const { state } = useLocation();
     const navigate = useNavigate();
+    const hasPostedRef = useRef(false);
+    const [saveError, setSaveError] = useState('');
 
     if (!state) {
         return <Navigate to="/dashboard" />;
     }
 
-    const { score, total, category, topic } = state;
+    const { score, total, category, topic, categoryId, topicId } = state;
     const percentage = Math.round((score / total) * 100);
+    const canSave = Boolean(categoryId && topicId);
+
+    useEffect(() => {
+        if (!canSave) return;
+        if (hasPostedRef.current) return;
+        hasPostedRef.current = true;
+        createResult({ categoryId, topicId, score, total }).catch(() => {
+            setSaveError('Could not save your result. Please try again later.');
+        });
+    }, [canSave, categoryId, topicId, score, total]);
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center justify-center">
@@ -34,6 +47,12 @@ const ResultPage = () => {
                         You scored <span className="font-bold text-white">{score}</span> out of <span className="font-bold text-white">{total}</span>
                     </p>
                 </div>
+
+                {saveError && (
+                    <div className="text-sm text-red-400 mb-4">
+                        {saveError}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                     <Link

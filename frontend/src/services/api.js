@@ -42,8 +42,48 @@ async function apiPost(path, body) {
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Request failed with ${response.status}`);
+    let message = `Request failed with ${response.status}`;
+    let code = 'REQUEST_ERROR';
+    try {
+      const payload = await response.json();
+      if (payload?.error?.message) message = payload.error.message;
+      if (payload?.error?.code) code = payload.error.code;
+    } catch {
+      const errorText = await response.text();
+      if (errorText) message = errorText;
+    }
+    const err = new Error(message);
+    err.code = code;
+    throw err;
+  }
+  return response.json();
+}
+
+async function apiPostAuth(path, body) {
+  const url = `${API_BASE_URL}${path}`;
+  const token = localStorage.getItem('devquiz_token');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let message = `Request failed with ${response.status}`;
+    let code = 'REQUEST_ERROR';
+    try {
+      const payload = await response.json();
+      if (payload?.error?.message) message = payload.error.message;
+      if (payload?.error?.code) code = payload.error.code;
+    } catch {
+      const errorText = await response.text();
+      if (errorText) message = errorText;
+    }
+    const err = new Error(message);
+    err.code = code;
+    throw err;
   }
   return response.json();
 }
@@ -71,6 +111,15 @@ export async function fetchQuestionsByCategoryTopic(categoryId, topicId) {
   return apiGet(`/api/questions/${categoryId}/${topicId}`);
 }
 
+export async function fetchMetadata() {
+  return apiGet('/api/questions/metadata');
+}
+
+export async function fetchCounts(categoryId) {
+  const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
+  return apiGet(`/api/questions/counts${query}`);
+}
+
 export async function registerUser(payload) {
   return apiPost('/api/auth/register', payload);
 }
@@ -81,4 +130,8 @@ export async function loginUser(payload) {
 
 export async function fetchMyResults() {
   return apiGetAuth('/api/results/me');
+}
+
+export async function createResult(payload) {
+  return apiPostAuth('/api/results', payload);
 }

@@ -18,8 +18,8 @@ const Register = () => {
         try {
             setLoading(true);
             setError('');
-            await registerUser({ username, password });
-            const data = await loginUser({ username, password });
+            await registerUser({ username, email, password });
+            const data = await loginUser({ email, password });
             login(data.user, data.token);
             navigate('/dashboard');
         } catch (err) {

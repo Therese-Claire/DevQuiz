@@ -94,6 +94,12 @@ Create `frontend/.env`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=your_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 ## API Documentation (Current + Planned)
@@ -143,6 +149,23 @@ Planned:
 4. Prefer descriptive component names and keep pages in `frontend/src/pages`.
 5. Avoid adding unused components. If you add one, wire it into the UI or remove it.
 
+## Migration Guidance (Existing Users Without Email)
+
+If you already have users in the database created before email was required, you need to add an email for them. Options:
+
+1. One‑time migration script:
+   - Add a script that finds users missing `email` and sets a placeholder or derived value.
+   - Example approach: `username + "@example.local"` for local development only.
+
+2. Manual update:
+   - Update existing users directly in MongoDB with a valid email.
+   - Ensure emails are unique and match the new unique index.
+
+3. Enforce re‑registration:
+   - Clear old users in dev environments and re‑register with email.
+
+Important: Because `email` is now `required` and `unique`, you must fix existing documents before running in production.
+
 ## Roadmap Ideas
 
 1. Connect frontend to backend for real data.
@@ -151,62 +174,41 @@ Planned:
 4. Admin management for quizzes and questions.
 5. Add leaderboards and performance analytics.
 
-### Additional Review Findings (Latest Sweep)
+### Redundant / Potentially Unused Files
 
-1. Results are never posted to the backend.
-   Impact: Profile stats and recent activity will always be empty.
-   Where: `frontend/src/pages/QuizPage.jsx`, `frontend/src/pages/ResultPage.jsx`, `Backend/routes/result.routes.js`
-   Fix: POST results to `/api/results` when a quiz completes, then read them in Profile.
+1. `frontend/src/data/mockQuizData.js`
+   Status: Placeholder only (no active data).
+   Recommendation: Keep for offline demos or remove if no longer needed.
 
-2. Login uses email → username inference, but registration ignores email.
-   Impact: Users may register with an email that is never stored; login may fail if username differs.
-   Where: `frontend/src/pages/Register.jsx`, `frontend/src/pages/Login.jsx`, `Backend/controllers/auth.controller.js`
-   Fix: Decide on username vs email; store and authenticate consistently.
+2. `frontend/src/services/firebase.js`
+   Status: Configured but not wired into the app yet.
+   Recommendation: Keep (planned Firebase usage), but document intended scope.
 
-3. Root `package.json` is a stray dependency.
-   Impact: Confusing install target; installs dependencies outside the real app folders.
-   Where: `package.json`
-   Fix: Remove it or document its purpose; prefer using `frontend/package.json` and `Backend/package.json`.
+3. `frontend/public/vite.svg`
+   Status: Template asset, currently unused.
+   Recommendation: Remove if you want a cleaner repo.
 
-4. Mock data file still exists after API integration.
-   Impact: Confusing source of truth; contributors may edit the wrong data source.
-   Where: `frontend/src/data/mockQuizData.js`
-   Fix: Move to backend seed data or delete and document the new source of truth.
+4. `frontend/src/assets/react.svg`
+   Status: Template asset, currently unused.
+   Recommendation: Remove if you want a cleaner repo.
 
-5. Categories/topics are frontend‑only metadata while backend only stores questions.
-   Impact: Data can drift between frontend and backend.
-   Where: `frontend/src/data/quizMetaData.js`, `Backend/models/question.js`
-   Fix: Add backend endpoints for categories/topics or generate metadata from the DB.
+### Additional Observations (Post‑Cleanup)
 
-6. Firebase service file is unused and contains placeholder keys.
-   Impact: Dead code and confusion about auth direction.
-   Where: `frontend/src/services/firebase.js`
-   Fix: Remove it or wire it into the app with real config.
+1. Results saving now exists, but has no success feedback or retry.
+   Impact: Users may not know if their results were saved.
+   Fix: Add a “Saved ✓” message and optional retry.
 
-7. Category page loads counts by fetching all questions in a category.
-   Impact: Can be slow on large datasets.
-   Where: `frontend/src/pages/CategoryPage.jsx`
-   Fix: Add a backend counts endpoint, e.g. `/api/questions/counts`.
+2. Login is email‑only and registration requires email.
+   Impact: Existing users without email must be migrated.
+   Fix: Follow the migration guidance below and consider frontend email validation.
 
-8. Unused/duplicate quiz components remain.
-   Impact: Maintenance overhead and confusion.
-   Where: `frontend/src/components/Quiz.jsx`, `QuizCard.jsx`, `ResultCard.jsx`, `ThemeToggle.jsx`
-   Fix: Remove or wire them into the UI.
+3. `/api/questions/:categoryId/:topicId` lacks pagination.
+   Impact: Large payloads for big topics.
+   Fix: Add `page` and `limit` support to this endpoint as well.
 
-9. Profile page filename casing is inconsistent.
-   Impact: Can break imports on case‑sensitive systems.
-   Where: `frontend/src/pages/profile.jsx`
-   Fix: Rename to `Profile.jsx` and update imports.
-
-10. Error handling is inconsistent across controllers.
-    Impact: Error responses may not always match the standardized shape.
-    Where: `Backend/controllers/auth.controller.js`, `Backend/controllers/question.controller.js`
-    Fix: Use `httpError` + `next()` consistently in all controllers.
-
-11. Question endpoints lack pagination.
-    Impact: Large payloads for big datasets.
-    Where: `Backend/controllers/question.controller.js`
-    Fix: Add `page` and `limit` query params with defaults.
+4. Metadata source split between backend (existence) and frontend (display labels).
+   Impact: Potential drift in naming/icons.
+   Fix: Move display metadata to backend or document as intentional.
 
 ---
 

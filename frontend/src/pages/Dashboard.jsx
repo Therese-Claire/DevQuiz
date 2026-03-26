@@ -1,13 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { categories } from '../data/quizMetaData';
+import { categories as displayCategories } from '../data/quizMetaData';
+import { fetchMetadata } from '../services/api';
 
 const Dashboard = () => {
     const navigate = useNavigate();
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const handleCategoryClick = (categoryId) => {
         navigate(`/category/${categoryId}`);
     };
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadMetadata = async () => {
+            try {
+                setLoading(true);
+                const data = await fetchMetadata();
+                const merged = (data.categories || []).map((c) => {
+                    const display = displayCategories.find((d) => d.id === c.categoryId);
+                    return display || {
+                        id: c.categoryId,
+                        name: c.categoryId,
+                        icon: '🧩',
+                        description: 'Quiz category',
+                    };
+                });
+                if (isMounted) {
+                    setCategories(merged);
+                    setError('');
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError('Failed to load categories.');
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        loadMetadata();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center">
@@ -17,7 +54,14 @@ const Dashboard = () => {
 
                 {/* Category Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16 animate-fade-in-up">
-                    {categories.map((cat) => (
+                    {loading && (
+                        <>
+                            <div className="h-40 bg-white/5 border border-white/10 rounded-3xl animate-pulse" />
+                            <div className="h-40 bg-white/5 border border-white/10 rounded-3xl animate-pulse" />
+                            <div className="h-40 bg-white/5 border border-white/10 rounded-3xl animate-pulse" />
+                        </>
+                    )}
+                    {!loading && categories.map((cat) => (
                         <button
                             key={cat.id}
                             onClick={() => handleCategoryClick(cat.id)}
@@ -31,6 +75,11 @@ const Dashboard = () => {
                         </button>
                     ))}
                 </div>
+                {error && (
+                    <div className="text-center text-sm text-red-400">
+                        {error}
+                    </div>
+                )}
             </div>
         </div>
     );

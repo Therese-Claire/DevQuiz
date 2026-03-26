@@ -114,7 +114,9 @@ const QuizPage = () => {
                         score: newScore,
                         total: questions.length,
                         category: category.name,
-                        topic: topicName
+                        topic: topicName,
+                        categoryId,
+                        topicId
                     }
                 });
             }

@@ -5,15 +5,19 @@ const httpError = require('../utils/httpError');
 
 exports.registerUser = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { username, email, password } = req.body;
 
     // Validation
-    if (!username || !password) {
-      return next(httpError(400, 'VALIDATION_ERROR', 'Username and password are required'));
+    if (!username || !email || !password) {
+      return next(httpError(400, 'VALIDATION_ERROR', 'Username, email, and password are required'));
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return next(httpError(400, 'INVALID_EMAIL', 'Email format is invalid'));
     }
 
     // Check if user exists
-    const userExists = await User.findOne({ username });
+    const userExists = await User.findOne({ $or: [{ username }, { email }] });
     if (userExists) {
       return next(httpError(409, 'CONFLICT', 'User already exists'));
     }
@@ -24,6 +28,7 @@ exports.registerUser = async (req, res, next) => {
     // Create user
     const user = await User.create({
       username,
+      email,
       password: hashedPassword
     });
 
@@ -39,20 +44,26 @@ exports.registerUser = async (req, res, next) => {
 
 exports.loginUser = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!username || !password) {
-      return next(httpError(400, 'VALIDATION_ERROR', 'Username and password are required'));
+    if (!email || !password) {
+      return next(httpError(400, 'VALIDATION_ERROR', 'Email and password are required'));
     }
 
-    const user = await User.findOne({ username });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return next(httpError(400, 'INVALID_EMAIL', 'Email format is invalid'));
+    }
+
+    const user = await User.findOne({
+      email,
+    });
     if (!user) {
-      return next(httpError(401, 'INVALID_CREDENTIALS', 'Invalid credentials'));
+      return next(httpError(401, 'INVALID_EMAIL', 'Email not found'));
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return next(httpError(401, 'INVALID_CREDENTIALS', 'Invalid credentials'));
+      return next(httpError(401, 'INVALID_PASSWORD', 'Incorrect password'));
     }
 
     if (!process.env.JWT_SECRET) {
@@ -70,6 +81,7 @@ exports.loginUser = async (req, res, next) => {
       user: {
         id: user._id,
         username: user.username,
+        email: user.email,
         isAdmin: user.isAdmin,
         totalScore: user.totalScore,
       },

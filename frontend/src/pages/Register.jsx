@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { loginUser, registerUser } from '../services/api';
 
 const Register = () => {
     const [username, setUsername] = useState('');
@@ -8,13 +9,23 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const { login } = useAuth();
     const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (email && password && username) {
-            // Mock register
-            login({ username, email });
+        if (!email || !password || !username) return;
+        try {
+            setLoading(true);
+            setError('');
+            await registerUser({ username, password });
+            const data = await loginUser({ username, password });
+            login(data.user, data.token);
             navigate('/dashboard');
+        } catch (err) {
+            setError('Registration failed. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -64,11 +75,18 @@ const Register = () => {
 
                     <button
                         type="submit"
-                        className="w-full py-4 bg-gradient-to-r from-secondary to-primary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(237,137,54,0.5)] transition-all duration-300 transform hover:-translate-y-1"
+                        disabled={loading}
+                        className="w-full py-4 bg-gradient-to-r from-secondary to-primary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(237,137,54,0.5)] transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        Create Account
+                        {loading ? 'Creating...' : 'Create Account'}
                     </button>
                 </form>
+
+                {error && (
+                    <div className="mt-4 text-center text-sm text-red-400">
+                        {error}
+                    </div>
+                )}
 
                 <div className="mt-6 text-center text-sm text-gray-400">
                     Already have an account? {' '}

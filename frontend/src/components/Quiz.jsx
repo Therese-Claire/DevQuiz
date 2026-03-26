@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { categories, quizData } from '../data/mockQuizData';
+import React, { useEffect, useState } from 'react';
+import { categories } from '../data/quizMetaData';
 import QuestionCard from './QuestionCard';
+import { fetchQuestions } from '../services/api';
 
 const Quiz = () => {
     const [currentCategory, setCurrentCategory] = useState(null);
@@ -8,6 +9,9 @@ const Quiz = () => {
     const [score, setScore] = useState(0);
     const [showScore, setShowScore] = useState(false);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [questionsFlat, setQuestionsFlat] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
     const handleCategorySelect = (categoryId) => {
         setCurrentCategory(categoryId);
@@ -17,21 +21,43 @@ const Quiz = () => {
         setSelectedAnswer(null);
     };
 
+    useEffect(() => {
+        let isMounted = true;
+        const loadQuestions = async () => {
+            if (!currentCategory) return;
+            try {
+                setLoading(true);
+                const data = await fetchQuestions({ categoryId: currentCategory });
+                if (isMounted) {
+                    setQuestionsFlat(data.questions || []);
+                    setError('');
+                }
+            } catch (err) {
+                if (isMounted) setError('Failed to load questions.');
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        loadQuestions();
+        return () => {
+            isMounted = false;
+        };
+    }, [currentCategory]);
+
     const handleAnswerSelect = (answer) => {
         setSelectedAnswer(answer);
     };
 
     const handleNextQuestion = () => {
         if (selectedAnswer) {
-            const currentQuizData = quizData[currentCategory];
-            const currentQuestion = currentQuizData[currentQuestionIndex];
+            const currentQuestion = questionsFlat[currentQuestionIndex];
 
             if (selectedAnswer === currentQuestion.correctAnswer) {
                 setScore(prev => prev + 1);
             }
 
             const nextQuestion = currentQuestionIndex + 1;
-            if (nextQuestion < currentQuizData.length) {
+            if (nextQuestion < questionsFlat.length) {
                 setCurrentQuestionIndex(nextQuestion);
                 setSelectedAnswer(null);
             } else {
@@ -60,7 +86,8 @@ const Quiz = () => {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-                    {categories.map((cat) => (
+                    {categories.map((cat) => {
+                        return (
                         <button
                             key={cat.id}
                             onClick={() => handleCategorySelect(cat.id)}
@@ -73,11 +100,16 @@ const Quiz = () => {
                                 {cat.name}
                             </span>
                             <span className="text-sm text-gray-400 bg-black/20 px-4 py-1 rounded-full">
-                                {quizData[cat.id].length} Questions
+                                {'Start Quiz'}
                             </span>
                         </button>
-                    ))}
+                    )})}
                 </div>
+                {error && (
+                    <div className="mt-6 text-center text-sm text-red-400">
+                        {error}
+                    </div>
+                )}
             </div>
         );
     }
@@ -94,10 +126,10 @@ const Quiz = () => {
 
                 <div className="bg-white/5 rounded-2xl p-8 mb-8 border border-white/10">
                     <div className="text-6xl font-black text-secondary mb-2">
-                        {Math.round((score / quizData[currentCategory].length) * 100)}%
+                        {questionsFlat.length > 0 ? Math.round((score / questionsFlat.length) * 100) : 0}%
                     </div>
                     <p className="text-xl text-gray-200">
-                        You scored <span className="font-bold text-white">{score}</span> out of <span className="font-bold text-white">{quizData[currentCategory].length}</span>
+                        You scored <span className="font-bold text-white">{score}</span> out of <span className="font-bold text-white">{questionsFlat.length}</span>
                     </p>
                 </div>
 
@@ -112,8 +144,23 @@ const Quiz = () => {
     }
 
     // Question View
-    const currentQuizData = quizData[currentCategory];
-    const currentQuestion = currentQuizData[currentQuestionIndex];
+    const currentQuestion = questionsFlat[currentQuestionIndex];
+
+    if (loading) {
+        return (
+            <div className="w-full flex flex-col items-center max-w-3xl mx-auto">
+                <div className="text-white text-center pt-32">Loading quiz...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="w-full flex flex-col items-center max-w-3xl mx-auto">
+                <div className="text-white text-center pt-32">{error}</div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full flex flex-col items-center max-w-3xl mx-auto">
@@ -122,7 +169,7 @@ const Quiz = () => {
                 <div>
                     <span className="text-sm font-medium text-gray-400 uppercase tracking-wider">Question</span>
                     <h2 className="text-3xl font-bold text-white">
-                        {currentQuestionIndex + 1}<span className="text-lg text-gray-500 font-medium">/{currentQuizData.length}</span>
+                        {currentQuestionIndex + 1}<span className="text-lg text-gray-500 font-medium">/{questionsFlat.length}</span>
                     </h2>
                 </div>
                 <div className="flex flex-col items-end">
@@ -131,7 +178,7 @@ const Quiz = () => {
                     <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
                         <div
                             className="h-full bg-gradient-to-r from-secondary to-primary transition-all duration-500 ease-out"
-                            style={{ width: `${((currentQuestionIndex + 1) / currentQuizData.length) * 100}%` }}
+                            style={{ width: `${((currentQuestionIndex + 1) / questionsFlat.length) * 100}%` }}
                         />
                     </div>
                 </div>
@@ -154,7 +201,7 @@ const Quiz = () => {
                     }
         `}
             >
-                {currentQuestionIndex === currentQuizData.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                {currentQuestionIndex === questionsFlat.length - 1 ? 'Finish Quiz' : 'Next Question'}
             </button>
         </div>
     );

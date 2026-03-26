@@ -1,13 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { categories, quizData } from '../data/mockQuizData';
+import { categories, topicsByCategory } from '../data/quizMetaData';
+import { fetchQuestions } from '../services/api';
 
 const CategoryPage = () => {
     const { categoryId } = useParams();
     const navigate = useNavigate();
+    const [questionCounts, setQuestionCounts] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const category = categories.find(c => c.id === categoryId);
-    const topics = quizData[categoryId]?.topics;
+    const topics = topicsByCategory[categoryId];
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadCounts = async () => {
+            try {
+                setLoading(true);
+                const { questions } = await fetchQuestions({ categoryId });
+                const counts = questions.reduce((acc, q) => {
+                    acc[q.topicId] = (acc[q.topicId] || 0) + 1;
+                    return acc;
+                }, {});
+                if (isMounted) {
+                    setQuestionCounts(counts);
+                    setError('');
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError('Failed to load questions. Please try again.');
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        if (categoryId) loadCounts();
+        return () => {
+            isMounted = false;
+        };
+    }, [categoryId]);
 
     if (!category || !topics) {
         return <div className="text-white text-center pt-32">Category not found</div>;
@@ -44,7 +76,11 @@ const CategoryPage = () => {
                             <div className="flex justify-between items-start mb-4">
                                 <h4 className="text-xl font-bold text-white">{topic.name}</h4>
                                 <span className="bg-white/10 text-xs px-2 py-1 rounded-md text-gray-300">
-                                    {quizData[categoryId].questions[topic.id].length} Qs
+                                    {loading ? (
+                                        <span className="inline-block w-10 h-4 bg-white/10 rounded animate-pulse" />
+                                    ) : (
+                                        `${questionCounts[topic.id] || 0} Qs`
+                                    )}
                                 </span>
                             </div>
                             <p className="text-gray-400 text-sm mb-6 h-10">{topic.description}</p>
@@ -61,6 +97,11 @@ const CategoryPage = () => {
                         </div>
                     ))}
                 </div>
+                {error && (
+                    <div className="mt-6 text-center text-sm text-red-400">
+                        {error}
+                    </div>
+                )}
             </div>
         </div>
     );

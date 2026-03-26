@@ -9,24 +9,28 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Check local storage for mock user session
         const storedUser = localStorage.getItem('devquiz_user');
+        const storedToken = localStorage.getItem('devquiz_token');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            const parsedUser = JSON.parse(storedUser);
+            const hydratedUser = storedToken ? { ...parsedUser, token: storedToken } : parsedUser;
+            setUser(hydratedUser);
         }
         setLoading(false);
     }, []);
 
-    const login = (userData) => {
-        // Check for admin
-        const role = userData.email === 'admin@dev.com' ? 'admin' : 'user';
-        const userWithRole = { ...userData, role };
+    const login = (userData, token) => {
+        const role = userData.isAdmin ? 'admin' : 'user';
+        const userWithRole = { ...userData, role, ...(token ? { token } : {}) };
 
         setUser(userWithRole);
         localStorage.setItem('devquiz_user', JSON.stringify(userWithRole));
+        if (token) localStorage.setItem('devquiz_token', token);
     };
 
     const logout = () => {
         setUser(null);
         localStorage.removeItem('devquiz_user');
+        localStorage.removeItem('devquiz_token');
     };
 
     return (

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { quizData, categories } from '../data/mockQuizData';
+import { categories, topicsByCategory } from '../data/quizMetaData';
 import QuestionCard from '../components/QuestionCard';
+import { fetchQuestionsByCategoryTopic } from '../services/api';
 
 const QuizPage = () => {
     const { categoryId, topicId } = useParams();
@@ -10,13 +11,81 @@ const QuizPage = () => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [score, setScore] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState(null);
+    const [questions, setQuestions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const category = categories.find(c => c.id === categoryId);
-    const questions = quizData[categoryId]?.questions[topicId];
-    const topicName = quizData[categoryId]?.topics.find(t => t.id === topicId)?.name;
+    const topicName = topicsByCategory[categoryId]?.find(t => t.id === topicId)?.name;
 
-    if (!questions) {
-        return <div className="text-white text-center pt-32">Quiz not found</div>;
+    useEffect(() => {
+        let isMounted = true;
+        const loadQuestions = async () => {
+            try {
+                setLoading(true);
+                const data = await fetchQuestionsByCategoryTopic(categoryId, topicId);
+                if (isMounted) {
+                    setQuestions(data.questions || []);
+                    setError('');
+                    setCurrentQuestionIndex(0);
+                    setScore(0);
+                    setSelectedAnswer(null);
+                }
+            } catch (err) {
+                if (isMounted) {
+                    setError('Failed to load quiz questions.');
+                }
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        if (categoryId && topicId) loadQuestions();
+        return () => {
+            isMounted = false;
+        };
+    }, [categoryId, topicId]);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center">
+                <div className="w-full max-w-3xl">
+                    <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20 animate-pulse">
+                        <div className="h-4 w-40 bg-white/10 rounded mb-4" />
+                        <div className="h-8 w-64 bg-white/10 rounded mb-8" />
+                        <div className="space-y-4">
+                            <div className="h-14 bg-white/10 rounded-2xl" />
+                            <div className="h-14 bg-white/10 rounded-2xl" />
+                            <div className="h-14 bg-white/10 rounded-2xl" />
+                            <div className="h-14 bg-white/10 rounded-2xl" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return <div className="text-white text-center pt-32">{error}</div>;
+    }
+
+    if (!questions || questions.length === 0) {
+        return (
+            <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center">
+                <div className="bg-white/5 backdrop-blur-lg rounded-3xl p-10 shadow-2xl border border-white/20 text-center max-w-lg w-full animate-fade-in-up">
+                    <div className="text-5xl mb-4">📭</div>
+                    <h2 className="text-2xl font-bold text-white mb-2">No questions found</h2>
+                    <p className="text-gray-400 mb-6">
+                        This topic doesn’t have any questions yet. Please choose another topic.
+                    </p>
+                    <button
+                        onClick={() => navigate(`/category/${categoryId}`)}
+                        className="bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 border border-white/10"
+                    >
+                        Back to Topics
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     const handleAnswerSelect = (answer) => {

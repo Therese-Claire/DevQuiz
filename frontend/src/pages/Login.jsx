@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { loginUser } from '../services/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const { login } = useAuth();
     const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (email && password) {
-            // Mock login
-            login({ username: email.split('@')[0], email });
+        if (!email || !password) return;
+        try {
+            setLoading(true);
+            setError('');
+            const username = email.includes('@') ? email.split('@')[0] : email;
+            const data = await loginUser({ username, password });
+            login(data.user, data.token);
             navigate('/dashboard');
+        } catch (err) {
+            setError('Login failed. Please check your credentials.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -52,11 +63,18 @@ const Login = () => {
 
                     <button
                         type="submit"
-                        className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(108,93,211,0.5)] transition-all duration-300 transform hover:-translate-y-1"
+                        disabled={loading}
+                        className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(108,93,211,0.5)] transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        Login
+                        {loading ? 'Logging in...' : 'Login'}
                     </button>
                 </form>
+
+                {error && (
+                    <div className="mt-4 text-center text-sm text-red-400">
+                        {error}
+                    </div>
+                )}
 
                 <div className="mt-6 text-center text-sm text-gray-400">
                     Don't have an account? {' '}

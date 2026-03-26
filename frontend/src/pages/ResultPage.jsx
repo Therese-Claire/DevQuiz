@@ -7,6 +7,8 @@ const ResultPage = () => {
     const navigate = useNavigate();
     const hasPostedRef = useRef(false);
     const [saveError, setSaveError] = useState('');
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     if (!state) {
         return <Navigate to="/dashboard" />;
@@ -20,10 +22,32 @@ const ResultPage = () => {
         if (!canSave) return;
         if (hasPostedRef.current) return;
         hasPostedRef.current = true;
-        createResult({ categoryId, topicId, score, total }).catch(() => {
-            setSaveError('Could not save your result. Please try again later.');
-        });
+        setSaving(true);
+        createResult({ categoryId, topicId, score, total })
+            .then(() => {
+                setSaveSuccess(true);
+                setSaveError('');
+            })
+            .catch(() => {
+                setSaveError('Could not save your result. Please try again.');
+            })
+            .finally(() => setSaving(false));
     }, [canSave, categoryId, topicId, score, total]);
+
+    const handleRetrySave = () => {
+        if (!canSave) return;
+        setSaving(true);
+        setSaveError('');
+        createResult({ categoryId, topicId, score, total })
+            .then(() => {
+                setSaveSuccess(true);
+                setSaveError('');
+            })
+            .catch(() => {
+                setSaveError('Could not save your result. Please try again.');
+            })
+            .finally(() => setSaving(false));
+    };
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center justify-center">
@@ -48,9 +72,21 @@ const ResultPage = () => {
                     </p>
                 </div>
 
+                {saving && (
+                    <div className="text-sm text-gray-400 mb-4">Saving your result...</div>
+                )}
+                {saveSuccess && (
+                    <div className="text-sm text-green-400 mb-4">Saved ✓</div>
+                )}
                 {saveError && (
                     <div className="text-sm text-red-400 mb-4">
-                        {saveError}
+                        {saveError}{' '}
+                        <button
+                            onClick={handleRetrySave}
+                            className="text-white underline underline-offset-2 hover:text-secondary"
+                        >
+                            Retry
+                        </button>
                     </div>
                 )}
 

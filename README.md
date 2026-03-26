@@ -208,7 +208,8 @@ Important: Because `email` is now `required` and `unique`, you must fix existing
 
 4. Metadata source split between backend (existence) and frontend (display labels).
    Impact: Potential drift in naming/icons.
-   Fix: Move display metadata to backend or document as intentional.
+   Fix: Document as intentional (current approach) or move display metadata to backend.
+   Status: Intentional for now — backend controls availability, frontend controls labels/icons.
 
 ---
 

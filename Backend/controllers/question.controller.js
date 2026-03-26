@@ -42,11 +42,31 @@ exports.getQuestions = async (req, res, next) => {
 exports.getQuestionsByCategoryTopic = async (req, res, next) => {
   try {
     const { categoryId, topicId } = req.params;
+    const { page = '1', limit = '50' } = req.query;
     if (!categoryId || !topicId) {
       return next(httpError(400, 'VALIDATION_ERROR', 'categoryId and topicId are required'));
     }
-    const questions = await Question.find({ categoryId, topicId }).select('-__v');
-    res.json({ count: questions.length, questions });
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      return next(httpError(400, 'VALIDATION_ERROR', 'page must be a positive integer'));
+    }
+    if (!Number.isInteger(limitNum) || limitNum < 1 || limitNum > 200) {
+      return next(httpError(400, 'VALIDATION_ERROR', 'limit must be an integer between 1 and 200'));
+    }
+    const skip = (pageNum - 1) * limitNum;
+    const filter = { categoryId, topicId };
+    const [questions, total] = await Promise.all([
+      Question.find(filter).select('-__v').skip(skip).limit(limitNum),
+      Question.countDocuments(filter),
+    ]);
+    res.json({
+      count: questions.length,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      questions,
+    });
   } catch (error) {
     next(error);
   }

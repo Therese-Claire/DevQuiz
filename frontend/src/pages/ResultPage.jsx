@@ -72,6 +72,18 @@ const ResultPage = () => {
                     </p>
                 </div>
 
+                <div className="bg-white/5 rounded-2xl p-6 mb-8 border border-white/10">
+                    <h3 className="text-lg font-semibold text-white mb-4">Breakdown</h3>
+                    <div className="flex justify-between text-gray-300 mb-2">
+                        <span>Correct</span>
+                        <span className="text-white font-semibold">{score}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-300">
+                        <span>Incorrect</span>
+                        <span className="text-white font-semibold">{Math.max(0, total - score)}</span>
+                    </div>
+                </div>
+
                 {saving && (
                     <div className="text-sm text-gray-400 mb-4">Saving your result...</div>
                 )}

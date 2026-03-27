@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { fetchMyResults } from "../services/api";
+import { supabase } from "../services/supabase";
 import { categories, topicsByCategory } from "../data/quizMetaData";
 
 export default function Profile() {
   const { user } = useAuth();
   const [results, setResults] = useState([]);
+  const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,7 +29,18 @@ export default function Profile() {
         if (isMounted) setLoading(false);
       }
     };
+    const loadBadges = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) return;
+      const { data } = await supabase
+        .from('user_badges')
+        .select('badge_id, badges(name, description, icon)')
+        .eq('user_id', userId);
+      setBadges(data || []);
+    };
     loadResults();
+    loadBadges();
     return () => {
       isMounted = false;
     };
@@ -37,8 +50,13 @@ export default function Profile() {
   const totalScore = results.reduce((acc, r) => acc + (r.score || 0), 0);
   const totalQuestions = results.reduce((acc, r) => acc + (r.total || 0), 0);
   const accuracy = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+  const bestPercentage = results.length > 0
+    ? Math.max(...results.map((r) => r.percentage || Math.round((r.score / r.total) * 100)))
+    : 0;
 
   const streakDays = computeStreak(results);
+  const topicPerformance = computeTopicPerformance(results);
+  const badgeProgress = computeBadgeProgress({ results, streakDays, badges });
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 flex flex-col items-center relative overflow-hidden">
@@ -63,7 +81,7 @@ export default function Profile() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
             <Stat title="Quizzes" value={loading ? "..." : String(totalQuizzes)} />
             <Stat title="Accuracy" value={loading ? "..." : `${accuracy}%`} />
-            <Stat title="Streak" value={loading ? "..." : `${streakDays} days`} />
+            <Stat title="Best Score" value={loading ? "..." : `${bestPercentage}%`} />
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
@@ -101,6 +119,82 @@ export default function Profile() {
                     <div className="text-gray-400 text-xs">
                       {formatDate(result.createdAt)}
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mt-6">
+            <h2 className="text-xl font-semibold text-white mb-3">
+              Topic Performance
+            </h2>
+            {loading && (
+              <div className="space-y-3">
+                <div className="h-10 bg-white/10 rounded-xl animate-pulse" />
+                <div className="h-10 bg-white/10 rounded-xl animate-pulse" />
+              </div>
+            )}
+            {!loading && topicPerformance.length === 0 && (
+              <p className="text-gray-400">No topic data yet.</p>
+            )}
+            {!loading && topicPerformance.length > 0 && (
+              <div className="space-y-3">
+                {topicPerformance.slice(0, 5).map((t) => (
+                  <div
+                    key={`${t.categoryId}-${t.topicId}`}
+                    className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-white font-medium">
+                        {getCategoryName(t.categoryId)} / {getTopicName(t.categoryId, t.topicId)}
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        Attempts: {t.count}
+                      </p>
+                    </div>
+                    <div className="text-secondary font-semibold">
+                      {t.avg}% avg
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mt-6">
+            <h2 className="text-xl font-semibold text-white mb-3">Badges</h2>
+            {badges.length === 0 && !loading && (
+              <p className="text-gray-400">No badges yet. Complete quizzes to earn some!</p>
+            )}
+            {badgeProgress.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {badgeProgress.map((b) => (
+                  <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-white font-semibold">{b.title}</div>
+                      <div className="text-xs text-gray-400">{b.subtitle}</div>
+                    </div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-secondary to-primary transition-all"
+                        style={{ width: `${Math.round(b.progress * 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 text-xs text-gray-400">
+                      {b.completed ? 'Unlocked' : `Progress ${Math.round(b.progress * 100)}%`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {badges.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {badges.map((b, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="text-2xl mb-2">{b.badges?.icon || '🏅'}</div>
+                    <div className="text-white font-semibold">{b.badges?.name || b.badge_id}</div>
+                    <div className="text-gray-400 text-sm">{b.badges?.description || ''}</div>
                   </div>
                 ))}
               </div>
@@ -156,4 +250,64 @@ function computeStreak(results) {
     }
   }
   return streak;
+}
+
+function computeTopicPerformance(results) {
+  const map = new Map();
+  for (const r of results) {
+    const key = `${r.category_id || r.categoryId}|${r.topic_id || r.topicId}`;
+    const categoryId = r.category_id || r.categoryId;
+    const topicId = r.topic_id || r.topicId;
+    const percentage = r.percentage || Math.round((r.score / r.total) * 100);
+    const current = map.get(key) || { categoryId, topicId, total: 0, count: 0 };
+    current.total += percentage;
+    current.count += 1;
+    map.set(key, current);
+  }
+  return Array.from(map.values())
+    .map((t) => ({ ...t, avg: Math.round(t.total / t.count) }))
+    .sort((a, b) => b.avg - a.avg);
+}
+
+function computeBadgeProgress({ results, streakDays, badges }) {
+  const earned = new Set((badges || []).map((b) => b.badge_id));
+  const totalQuizzes = results.length;
+  const perfectCount = results.filter((r) => {
+    const percentage = r.percentage ?? Math.round((r.score / r.total) * 100);
+    return percentage === 100;
+  }).length;
+
+  const definitions = [
+    {
+      id: 'first_quiz',
+      title: 'First Quiz',
+      subtitle: `${Math.min(totalQuizzes, 1)}/1 complete`,
+      progress: Math.min(totalQuizzes / 1, 1),
+    },
+    {
+      id: 'perfect_score',
+      title: 'Perfect Score',
+      subtitle: `${Math.min(perfectCount, 1)}/1 perfect`,
+      progress: Math.min(perfectCount / 1, 1),
+    },
+    {
+      id: 'hot_streak_3',
+      title: '3 Day Streak',
+      subtitle: `${Math.min(streakDays, 3)}/3 days`,
+      progress: Math.min(streakDays / 3, 1),
+    },
+    {
+      id: 'hot_streak_7',
+      title: '7 Day Streak',
+      subtitle: `${Math.min(streakDays, 7)}/7 days`,
+      progress: Math.min(streakDays / 7, 1),
+    },
+  ];
+
+  return definitions.map((d) => ({
+    ...d,
+    completed: earned.has(d.id),
+    progress: earned.has(d.id) ? 1 : d.progress,
+    subtitle: earned.has(d.id) ? 'Completed' : d.subtitle,
+  }));
 }

@@ -1,17 +1,16 @@
 require('dotenv').config();
 const path = require('path');
-const { pathToFileURL } = require('url');
+const fs = require('fs');
 const db = require('../config/db');
 
-async function loadMockQuizData() {
-  const mockPath = path.resolve(__dirname, '../../frontend/src/data/mockQuizData.js');
-  const fileUrl = pathToFileURL(mockPath).href;
-  const mod = await import(fileUrl);
-  return mod.quizData;
+async function loadQuestionsJson() {
+  const jsonPath = path.resolve(__dirname, '../../database/seed/questions.json');
+  const raw = fs.readFileSync(jsonPath, 'utf8');
+  return JSON.parse(raw);
 }
 
 async function seedQuestions() {
-  const quizData = await loadMockQuizData();
+  const quizData = await loadQuestionsJson();
 
   const documents = [];
 

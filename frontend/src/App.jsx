@@ -13,6 +13,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CategoryPage from './pages/CategoryPage';
 import { useAuth } from './context/AuthContext';
 import NotAuthorized from './pages/NotAuthorized';
+import Leaderboard from './pages/Leaderboard';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -88,10 +89,26 @@ const App = () => {
               }
             />
             <Route
+              path="/quiz-set/:setId"
+              element={
+                <ProtectedRoute>
+                  <QuizPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/result"
               element={
                 <ProtectedRoute>
                   <ResultPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leaderboard"
+              element={
+                <ProtectedRoute>
+                  <Leaderboard />
                 </ProtectedRoute>
               }
             />

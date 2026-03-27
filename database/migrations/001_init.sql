@@ -100,6 +100,22 @@ before update on users
 for each row
 execute function set_updated_at();
 
+-- Ensure profile row exists for authenticated users
+create or replace function handle_new_user()
+returns trigger as $$
+begin
+  insert into public.users (id, email, username)
+  values (new.id, new.email, split_part(new.email, '@', 1))
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function handle_new_user();
+
 -- RLS Policies
 alter table users enable row level security;
 alter table results enable row level security;

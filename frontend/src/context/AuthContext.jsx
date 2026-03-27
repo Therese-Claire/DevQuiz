@@ -15,11 +15,30 @@ export const AuthProvider = ({ children }) => {
                 setUser(null);
                 return;
             }
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('users')
                 .select('username, email, is_admin, total_score')
                 .eq('id', sessionUser.id)
                 .single();
+
+            // If profile row is missing, create a minimal one
+            if (error) {
+                const fallbackUsername = sessionUser.email
+                    ? sessionUser.email.split('@')[0]
+                    : `user_${sessionUser.id.slice(0, 6)}`;
+                await supabase.from('users').upsert({
+                    id: sessionUser.id,
+                    email: sessionUser.email,
+                    username: fallbackUsername,
+                });
+                const retry = await supabase
+                    .from('users')
+                    .select('username, email, is_admin, total_score')
+                    .eq('id', sessionUser.id)
+                    .single();
+                data = retry.data;
+                error = retry.error;
+            }
 
             const role = data?.is_admin ? 'admin' : 'user';
             const hydrated = {

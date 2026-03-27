@@ -35,6 +35,9 @@ async function seed() {
   const mode = process.argv[2] || 'all'; // all | meta | questions
   const { categories, topicsByCategory } = await loadQuizMeta();
   const quizData = await loadQuestionsJson();
+  const badgesPath = path.resolve(__dirname, '../../database/seed/badges.json');
+  const badgesRaw = fs.readFileSync(badgesPath, 'utf8');
+  const badges = JSON.parse(badgesRaw);
 
   // Categories
   if ((mode === 'all' || mode === 'meta') && categories && categories.length > 0) {
@@ -93,6 +96,11 @@ async function seed() {
     } else {
       console.log('No questions found in questions.json. Skipping question seed.');
     }
+  }
+
+  if (mode === 'all' && badges && badges.length > 0) {
+    const { error } = await supabase.from('badges').upsert(badges);
+    if (error) throw error;
   }
 
   console.log(`Supabase seed complete (${mode}).`);

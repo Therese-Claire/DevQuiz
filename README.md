@@ -1,36 +1,34 @@
 # DevQuiz
 
-DevQuiz is a full‑stack quiz platform for developers to test and grow their skills across web fundamentals, programming, and software practices. It delivers a modern, animated learning experience on the frontend and is designed to support persistent user accounts and results on the backend.
+DevQuiz is a full‑stack quiz platform for developers to test and grow their skills across web fundamentals, programming, and software practices. It delivers a modern, animated learning experience on the frontend and uses Supabase (PostgreSQL) for data and authentication.
 
 ## What The Website Does
 
 DevQuiz lets users:
 1. Register or log in.
 2. Browse quiz categories and topics.
-3. Take timed‑style multiple‑choice quizzes with instant feedback.
-4. View their results after each quiz.
-5. Access an admin dashboard for high‑level insights (mocked in the UI).
-
-The current frontend runs against local mock data for quizzes, while the backend provides the foundations for authentication and data persistence.
+3. Take multiple‑choice quizzes with instant feedback.
+4. View results after each quiz.
+5. Access an admin dashboard to manage categories, topics, and questions.
 
 ## Core Pages
 
 1. Home: Marketing‑style landing page introducing DevQuiz.
-2. Login / Register: User onboarding flow.
+2. Login / Register: User onboarding flow via Supabase Auth.
 3. Dashboard: Category selection and overview.
 4. Category Page: Topic selection inside a category.
 5. Quiz Page: Interactive quiz flow.
 6. Result Page: Score summary and replay option.
-7. Profile: Basic user profile and stats.
-8. Admin Dashboard: Mock administrative overview.
+7. Profile: User stats and recent activity (from Supabase results).
+8. Admin Dashboard: Create and manage categories, topics, and questions.
 
 ## Feature Highlights
 
-1. Clean, modern UI with animations and gradients.
+1. Modern UI with gradients and glassmorphism.
 2. Theme toggle (light/dark).
 3. Category‑based quiz navigation.
-4. Question progression with progress indicator.
-5. Score calculation and results summary.
+4. Progress indicator and score summary.
+5. Admin panel for content management.
 
 ## Tech Stack
 
@@ -38,28 +36,27 @@ Frontend:
 1. React (Vite)
 2. React Router
 3. Tailwind CSS
+4. Supabase JS client
 
 Backend:
 1. Node.js
-2. Express
-3. MongoDB (Mongoose)
-4. JWT Authentication
+2. Express (minimal health server)
+3. Supabase (PostgreSQL + Auth)
 
 ## Project Structure
 
 Frontend: `frontend/`
 Backend: `Backend/`
+Database migrations: `database/migrations/`
+Seed data: `database/seed/`
 
-The frontend uses mock quiz data in `frontend/src/data/mockQuizData.js`.
-The backend currently contains authentication setup and placeholders for quiz and result APIs.
+The frontend reads questions and metadata directly from Supabase using `@supabase/supabase-js`.
+The backend is minimal and optional, primarily for seeding and health checks.
 
 ## Current Status
 
-The UI is fully functional with mock data and local session handling.
-The backend is a work in progress and is ready to be extended to:
-1. Support real user login.
-2. Store quiz results.
-3. Serve quizzes dynamically.
+The UI is fully functional with Supabase Auth and database reads/writes.
+The backend is minimal and optional.
 
 ## Running The Project
 
@@ -68,204 +65,161 @@ Frontend:
 2. `npm install`
 3. `npm run dev`
 
-Backend:
+Backend (optional):
 1. `cd Backend`
 2. `npm install`
 3. `npm run dev`
-
-You will need a `.env` file in `Backend/` with at least:
-1. `DATABASE_URL=...`
-2. `SUPABASE_URL=...`
-3. `SUPABASE_SERVICE_ROLE_KEY=...`
-4. `JWT_SECRET=...`
 
 ## Environment Setup Examples
 
 Create `Backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/devquiz
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+DATABASE_URL=postgresql://user:password@localhost:5432/devquiz
 JWT_SECRET=replace_with_a_long_random_string
 PORT=5000
 CORS_ORIGINS=http://localhost:5173
 ```
 
-Optional frontend environment values (if you later wire API calls):
-
 Create `frontend/.env`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000
-VITE_FIREBASE_API_KEY=your_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
 ```
 
-## API Documentation (Current + Planned)
+## Database Migration (Supabase/Postgres)
 
-Base URL (local): `http://localhost:5000`
+Run:
+1. `database/migrations/001_init.sql`
+2. `database/migrations/002_init.sql` (composite key fix for topics)
 
-Current:
-1. `POST /api/auth/register`
-   Purpose: Register a new user.
-   Body:
-   - `username` (string, required)
-   - `password` (string, required)
-   Responses:
-   - `201` Created: `{ message, userId }`
-   - `400` Bad Request: `{ message }`
-   - `409` Conflict: `{ message }`
-   - `500` Server Error: `{ message }`
-
-Planned:
-1. `POST /api/auth/login`
-   Purpose: Authenticate a user and return a JWT.
-   Body:
-   - `username` or `email`
-   - `password`
-   Response:
-   - `{ token, user }`
-
-2. `GET /api/questions`
-   Purpose: List categories, topics, and questions.
-
-3. `GET /api/questions/:categoryId/:topicId`
-   Purpose: Get questions for a specific topic.
-
-4. `POST /api/results`
-   Purpose: Store a user quiz result.
-   Auth: Bearer token required.
-
-5. `GET /api/results/me`
-   Purpose: Retrieve results for the current user.
-   Auth: Bearer token required.
-
-## Contributor Guidelines
-
-1. Keep code style consistent with existing patterns (React functional components, hooks, and Tailwind).
-2. Do not commit real secrets. Use `.env` files locally and keep `JWT_SECRET` long and random.
-3. Add or update README notes when you introduce new routes or features.
-4. Prefer descriptive component names and keep pages in `frontend/src/pages`.
-5. Avoid adding unused components. If you add one, wire it into the UI or remove it.
-
-## Supabase / PostgreSQL Migration Notes
-
-This project is moving from MongoDB to PostgreSQL (Supabase). Below are the changes required, a migration path, and local setup instructions.
-
-### Codebase Changes Required
-
-Backend:
-1. Replace Mongoose models with SQL queries (e.g., via `pg` or Supabase client).
-2. Remove MongoDB connection (`Backend/config/database.js`) and update server startup to connect to Postgres/Supabase.
-3. Update controllers:
-   - Auth: store `password_hash` in `users`, validate with bcrypt, issue JWT as before.
-   - Questions: query `questions` table with `category_id` and `topic_id`.
-   - Results: insert into `results` and select by `user_id`.
-4. Replace seed scripts:
-   - `seed-questions.js` → SQL inserts or a Node script using Postgres client.
-   - `seed-admin.js` → insert into `users` with `is_admin = true`.
-5. Update environment variables:
-   - Replace `MONGO_URI` with `DATABASE_URL` (or Supabase URL + service role key).
-
-Frontend:
-1. No major changes required if API routes remain the same.
-2. If using Supabase directly from the frontend, replace API calls with Supabase SDK calls.
-
-### Suggested Schema (SQL)
-
-See `database/migrations/001_init.sql` for full DDL including tables and relationships.
+These create tables, relationships, RLS policies, and the `question_counts` view.
 
 ### RLS Policies (Recommended)
 
-These are included in `database/migrations/001_init.sql`:
+Included in `001_init.sql`:
 1. `users`: Only the authenticated user can read/insert/update their own profile.
 2. `results`: Only the authenticated user can read/insert their own results.
 3. `questions`, `categories`, `topics`: Public read access for all users.
+4. Admin‑only write access for categories/topics/questions.
 
-If you want admin‑only writes to questions/categories/topics, add admin‑role checks in Supabase policies.
+## Seeding Data
 
-### Migration Path (MongoDB → PostgreSQL)
+Seed categories/topics/questions to Supabase:
 
-1. Export from MongoDB:
-   - `users`, `questions`, `results` collections.
-2. Transform:
-   - Map `_id` to UUIDs (or store old IDs in a temporary column if needed).
-   - Convert `categoryId` → `category_id`, `topicId` → `topic_id`.
-   - Ensure `email` exists for all users (see migration guidance above).
-3. Import into Postgres:
-   - Load `categories` and `topics` first.
-   - Load `users`, then `questions`, then `results`.
-4. Verify:
-   - Count totals match.
-   - Run sample queries for a known user to confirm results.
+```bash
+cd Backend
+npm run seed:supabase
+```
 
-### Local Setup Guide (Postgres + Seed Data)
+Seed only metadata:
 
-1. Install PostgreSQL locally.
-2. Create database:
-   - `createdb devquiz`
-3. Run migration:
-   - `psql devquiz -f database/migrations/001_init.sql`
-4. Seed categories/topics/questions:
-   - Use a Node script (recommended) or SQL inserts.
-   - You can adapt `Backend/scripts/seed-questions.js` to write into Postgres.
-5. Configure environment:
-   - `DATABASE_URL=postgresql://user:password@localhost:5432/devquiz`
-6. Start backend:
-   - Update backend to use Postgres client.
-   - `npm run dev` in `Backend/`
+```bash
+npm run seed:supabase -- meta
+```
 
+Seed only questions:
 
-## Roadmap Ideas
+```bash
+npm run seed:supabase -- questions
+```
 
-1. Connect frontend to backend for real data.
-2. Add authentication login and role‑based access control.
-3. Store quiz history per user.
-4. Admin management for quizzes and questions.
-5. Add leaderboards and performance analytics.
+Seed files:
+1. `database/seed/categories.json`
+2. `database/seed/topics.json`
+3. `database/seed/questions.json`
 
-### Redundant / Potentially Unused Files
+## Migration Guidance (Existing Users Without Email)
+
+If you already have users in the database created before email was required, you need to add an email for them:
+
+1. One‑time migration script: assign placeholder emails (dev only).
+2. Manual update in Supabase.
+3. Re‑register users in development.
+
+Important: `email` is required and unique.
+
+## Redundant / Potentially Unused Files
 
 1. `frontend/src/data/mockQuizData.js`
    Status: Placeholder only (no active data).
    Recommendation: Keep for offline demos or remove if no longer needed.
 
-2. `frontend/src/services/firebase.js`
-   Status: Configured but not wired into the app yet.
-   Recommendation: Keep (planned Firebase usage), but document intended scope.
+## Roadmap Ideas
 
-3. `frontend/public/vite.svg`
-   Status: Template asset, currently unused.
-   Recommendation: Remove if you want a cleaner repo.
+1. Admin workflows for bulk import and moderation.
+2. Advanced analytics and leaderboards.
+3. Badges, streaks, and achievements.
+4. Team challenges and competitive modes.
+5. Leaderboards by category/topic with time filters.
+6. Streaks and badges tied to results.
+7. Question reporting and moderation queue.
+8. Admin analytics dashboard (daily active users, completion rate).
 
-4. `frontend/src/assets/react.svg`
-   Status: Template asset, currently unused.
-   Recommendation: Remove if you want a cleaner repo.
+## Full Codebase Review (Latest)
 
-### Additional Observations (Post‑Cleanup)
+### Strengths
+1. Supabase‑first architecture is consistent across auth, reads, and writes.
+2. Admin panel now supports CRUD for categories, topics, and questions.
+3. RLS policies are present and aligned with client usage.
+4. Seed pipelines are structured and reproducible.
 
-1. Results saving now exists, but has no success feedback or retry.
-   Impact: Users may not know if their results were saved.
-   Fix: Add a “Saved ✓” message and optional retry.
+### Bugs / Risks / Gaps
+1. `httpError.js` and JWT dependency were unused in the minimal backend.
+   Status: Removed.
+   Where: `Backend/utils/httpError.js`, `Backend/package.json`
+   Fix: Completed.
 
-2. Login is email‑only and registration requires email.
-   Impact: Existing users without email must be migrated.
-   Fix: Follow the migration guidance below and consider frontend email validation.
+2. `seed-admin.js` uses Supabase Admin API now.
+   Status: Converted to Supabase.
+   Where: `Backend/scripts/seed-admin.js`
+   Fix: Completed.
 
-3. `/api/questions/:categoryId/:topicId` lacks pagination.
-   Impact: Large payloads for big topics.
-   Fix: Add `page` and `limit` support to this endpoint as well.
+3. `quizMetaData.js` is display‑only and not enforced by DB.
+   Impact: Naming/icon drift possible.
+   Where: `frontend/src/data/quizMetaData.js`
+   Fix: Keep documented as intentional or move display metadata to DB.
 
-4. Metadata source split between backend (existence) and frontend (display labels).
-   Impact: Potential drift in naming/icons.
-   Fix: Document as intentional (current approach) or move display metadata to backend.
-   Status: Intentional for now — backend controls availability, frontend controls labels/icons.
+## Recent Enhancements (Just Added)
 
----
+1. Profile now shows best score and topic performance.
+2. Results page includes correct vs incorrect breakdown.
+3. Admin dashboard supports edit, search, filters, pagination, import/export, and delete confirmations with undo.
+4. Admin dashboard adds correct‑answer selector, import validation with error reports, and bulk archive instead of hard delete.
 
-If you want, I can also add environment setup examples, API documentation, or contributor guidelines.
+4. Admin questions list now shows total results and supports filters.
+   Status: Completed.
+   Where: `frontend/src/pages/AdminDashboard.jsx`
+   Fix: Completed.
+
+5. Auth profile creation now includes a DB trigger and client verification.
+   Status: Completed.
+   Where: `database/migrations/001_init.sql`, `frontend/src/context/AuthContext.jsx`, `frontend/src/services/api.js`
+   Fix: Completed.
+
+### Pages That Need Completion / Polishing
+1. Profile page: Add richer stats (best score, topic performance).
+2. Result page: Add detailed breakdown (correct vs incorrect).
+3. Admin dashboard: Add bulk import, export, and undo/confirm for deletes.
+
+### Enhancement Ideas
+1. Add “Create Quiz Set” feature to group questions by difficulty.
+2. Add leaderboards by category/topic with time filters.
+3. Add streaks and badges tied to results.
+4. Add question reporting / moderation queue.
+5. Add analytics dashboard for admin (daily active users, completion rate).
+
+### Suggested Roadmap (Next 3 Milestones)
+1. **Content Ops**
+   - Bulk import UI for questions.
+   - Category/topic analytics.
+2. **User Progress**
+   - Detailed profile stats.
+   - Badges and streaks.
+3. **Competitive Features**
+   - Leaderboards.
+   - Time‑boxed challenges.

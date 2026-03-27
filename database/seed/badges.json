@@ -1,0 +1,6 @@
+[
+  { "id": "first_quiz", "name": "First Quiz", "description": "Completed your first quiz", "icon": "🥇" },
+  { "id": "hot_streak_3", "name": "Hot Streak", "description": "3‑day streak", "icon": "🔥" },
+  { "id": "hot_streak_7", "name": "On Fire", "description": "7‑day streak", "icon": "🔥" },
+  { "id": "perfect_score", "name": "Perfect Score", "description": "Scored 100% on a quiz", "icon": "🏆" }
+]

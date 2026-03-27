@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { loginUser } from '../services/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
     const [emailError, setEmailError] = useState('');
@@ -21,8 +19,7 @@ const Login = () => {
             setError('');
             setEmailError('');
             setPasswordError('');
-            const data = await loginUser({ email, password });
-            login(data.user, data.token);
+            await loginUser({ email, password });
             navigate('/dashboard');
         } catch (err) {
             if (err.code === 'INVALID_EMAIL') {

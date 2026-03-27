@@ -74,15 +74,19 @@ Backend:
 3. `npm run dev`
 
 You will need a `.env` file in `Backend/` with at least:
-1. `MONGO_URI=...`
-2. `JWT_SECRET=...`
+1. `DATABASE_URL=...`
+2. `SUPABASE_URL=...`
+3. `SUPABASE_SERVICE_ROLE_KEY=...`
+4. `JWT_SECRET=...`
 
 ## Environment Setup Examples
 
 Create `Backend/.env`:
 
 ```env
-MONGO_URI=mongodb://localhost:27017/devquiz
+DATABASE_URL=postgresql://user:password@localhost:5432/devquiz
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 JWT_SECRET=replace_with_a_long_random_string
 PORT=5000
 CORS_ORIGINS=http://localhost:5173
@@ -149,22 +153,73 @@ Planned:
 4. Prefer descriptive component names and keep pages in `frontend/src/pages`.
 5. Avoid adding unused components. If you add one, wire it into the UI or remove it.
 
-## Migration Guidance (Existing Users Without Email)
+## Supabase / PostgreSQL Migration Notes
 
-If you already have users in the database created before email was required, you need to add an email for them. Options:
+This project is moving from MongoDB to PostgreSQL (Supabase). Below are the changes required, a migration path, and local setup instructions.
 
-1. One‑time migration script:
-   - Add a script that finds users missing `email` and sets a placeholder or derived value.
-   - Example approach: `username + "@example.local"` for local development only.
+### Codebase Changes Required
 
-2. Manual update:
-   - Update existing users directly in MongoDB with a valid email.
-   - Ensure emails are unique and match the new unique index.
+Backend:
+1. Replace Mongoose models with SQL queries (e.g., via `pg` or Supabase client).
+2. Remove MongoDB connection (`Backend/config/database.js`) and update server startup to connect to Postgres/Supabase.
+3. Update controllers:
+   - Auth: store `password_hash` in `users`, validate with bcrypt, issue JWT as before.
+   - Questions: query `questions` table with `category_id` and `topic_id`.
+   - Results: insert into `results` and select by `user_id`.
+4. Replace seed scripts:
+   - `seed-questions.js` → SQL inserts or a Node script using Postgres client.
+   - `seed-admin.js` → insert into `users` with `is_admin = true`.
+5. Update environment variables:
+   - Replace `MONGO_URI` with `DATABASE_URL` (or Supabase URL + service role key).
 
-3. Enforce re‑registration:
-   - Clear old users in dev environments and re‑register with email.
+Frontend:
+1. No major changes required if API routes remain the same.
+2. If using Supabase directly from the frontend, replace API calls with Supabase SDK calls.
 
-Important: Because `email` is now `required` and `unique`, you must fix existing documents before running in production.
+### Suggested Schema (SQL)
+
+See `database/migrations/001_init.sql` for full DDL including tables and relationships.
+
+### RLS Policies (Recommended)
+
+These are included in `database/migrations/001_init.sql`:
+1. `users`: Only the authenticated user can read/insert/update their own profile.
+2. `results`: Only the authenticated user can read/insert their own results.
+3. `questions`, `categories`, `topics`: Public read access for all users.
+
+If you want admin‑only writes to questions/categories/topics, add admin‑role checks in Supabase policies.
+
+### Migration Path (MongoDB → PostgreSQL)
+
+1. Export from MongoDB:
+   - `users`, `questions`, `results` collections.
+2. Transform:
+   - Map `_id` to UUIDs (or store old IDs in a temporary column if needed).
+   - Convert `categoryId` → `category_id`, `topicId` → `topic_id`.
+   - Ensure `email` exists for all users (see migration guidance above).
+3. Import into Postgres:
+   - Load `categories` and `topics` first.
+   - Load `users`, then `questions`, then `results`.
+4. Verify:
+   - Count totals match.
+   - Run sample queries for a known user to confirm results.
+
+### Local Setup Guide (Postgres + Seed Data)
+
+1. Install PostgreSQL locally.
+2. Create database:
+   - `createdb devquiz`
+3. Run migration:
+   - `psql devquiz -f database/migrations/001_init.sql`
+4. Seed categories/topics/questions:
+   - Use a Node script (recommended) or SQL inserts.
+   - You can adapt `Backend/scripts/seed-questions.js` to write into Postgres.
+5. Configure environment:
+   - `DATABASE_URL=postgresql://user:password@localhost:5432/devquiz`
+6. Start backend:
+   - Update backend to use Postgres client.
+   - `npm run dev` in `Backend/`
+
 
 ## Roadmap Ideas
 

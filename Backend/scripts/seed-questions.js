@@ -1,8 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const { pathToFileURL } = require('url');
-const connectDB = require('../config/database');
-const Question = require('../models/question');
+const db = require('../config/db');
 
 async function loadMockQuizData() {
   const mockPath = path.resolve(__dirname, '../../frontend/src/data/mockQuizData.js');
@@ -12,7 +11,6 @@ async function loadMockQuizData() {
 }
 
 async function seedQuestions() {
-  await connectDB();
   const quizData = await loadMockQuizData();
 
   const documents = [];
@@ -32,9 +30,21 @@ async function seedQuestions() {
     }
   }
 
-  await Question.deleteMany({});
+  await db.query('delete from questions');
   if (documents.length > 0) {
-    await Question.insertMany(documents);
+    const values = [];
+    const params = [];
+    let idx = 1;
+    for (const doc of documents) {
+      params.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`);
+      values.push(doc.categoryId, doc.topicId, doc.question, doc.options, doc.correctAnswer);
+      idx += 5;
+    }
+    await db.query(
+      `insert into questions (category_id, topic_id, question, options, correct_answer)
+       values ${params.join(', ')}`,
+      values
+    );
   }
 
   console.log(`Seeded ${documents.length} questions.`);

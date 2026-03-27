@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { supabase } from './supabase';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map();
 
@@ -16,122 +16,150 @@ function setCache(key, data) {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
-async function apiGet(path) {
-  const url = `${API_BASE_URL}${path}`;
-  const cached = getCache(url);
+export async function fetchQuestions(params = {}) {
+  const cacheKey = `questions:${JSON.stringify(params)}`;
+  const cached = getCache(cacheKey);
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || `Request failed with ${response.status}`);
-    }
-    const data = await response.json();
-    setCache(url, data);
-    return data;
+    const page = Number(params.page || 1);
+    const limit = Number(params.limit || 50);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('questions')
+      .select('id, category_id, topic_id, question, options, correct_answer', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (params.categoryId) query = query.eq('category_id', params.categoryId);
+    if (params.topicId) query = query.eq('topic_id', params.topicId);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const payload = {
+      count: data.length,
+      total: count || 0,
+      page,
+      limit,
+      questions: data,
+    };
+    setCache(cacheKey, payload);
+    return payload;
   } catch (err) {
     if (cached) return cached;
     throw err;
   }
 }
 
-async function apiPost(path, body) {
-  const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    let message = `Request failed with ${response.status}`;
-    let code = 'REQUEST_ERROR';
-    try {
-      const payload = await response.json();
-      if (payload?.error?.message) message = payload.error.message;
-      if (payload?.error?.code) code = payload.error.code;
-    } catch {
-      const errorText = await response.text();
-      if (errorText) message = errorText;
-    }
-    const err = new Error(message);
-    err.code = code;
-    throw err;
-  }
-  return response.json();
-}
-
-async function apiPostAuth(path, body) {
-  const url = `${API_BASE_URL}${path}`;
-  const token = localStorage.getItem('devquiz_token');
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    let message = `Request failed with ${response.status}`;
-    let code = 'REQUEST_ERROR';
-    try {
-      const payload = await response.json();
-      if (payload?.error?.message) message = payload.error.message;
-      if (payload?.error?.code) code = payload.error.code;
-    } catch {
-      const errorText = await response.text();
-      if (errorText) message = errorText;
-    }
-    const err = new Error(message);
-    err.code = code;
-    throw err;
-  }
-  return response.json();
-}
-
-async function apiGetAuth(path) {
-  const url = `${API_BASE_URL}${path}`;
-  const token = localStorage.getItem('devquiz_token');
-  const response = await fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Request failed with ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function fetchQuestions(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  const path = query ? `/api/questions?${query}` : '/api/questions';
-  return apiGet(path);
-}
-
 export async function fetchQuestionsByCategoryTopic(categoryId, topicId) {
-  return apiGet(`/api/questions/${categoryId}/${topicId}`);
+  return fetchQuestions({ categoryId, topicId });
 }
 
 export async function fetchMetadata() {
-  return apiGet('/api/questions/metadata');
+  const cacheKey = 'metadata';
+  const cached = getCache(cacheKey);
+  try {
+    const { data, error } = await supabase
+      .from('question_counts')
+      .select('category_id, topic_id, count');
+    if (error) throw error;
+
+    const categoriesMap = new Map();
+    const topicsByCategory = {};
+    for (const row of data) {
+      categoriesMap.set(row.category_id, (categoriesMap.get(row.category_id) || 0) + row.count);
+      if (!topicsByCategory[row.category_id]) topicsByCategory[row.category_id] = [];
+      topicsByCategory[row.category_id].push({ topicId: row.topic_id, count: row.count });
+    }
+
+    const categories = Array.from(categoriesMap.entries()).map(([categoryId, total]) => ({
+      categoryId,
+      total,
+    }));
+
+    const payload = { categories, topicsByCategory };
+    setCache(cacheKey, payload);
+    return payload;
+  } catch (err) {
+    if (cached) return cached;
+    throw err;
+  }
 }
 
 export async function fetchCounts(categoryId) {
-  const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : '';
-  return apiGet(`/api/questions/counts${query}`);
+  const cacheKey = `counts:${categoryId || 'all'}`;
+  const cached = getCache(cacheKey);
+  try {
+    let query = supabase.from('question_counts').select('topic_id, count');
+    if (categoryId) query = query.eq('category_id', categoryId);
+    const { data, error } = await query;
+    if (error) throw error;
+    const payload = { counts: data.map((t) => ({ topicId: t.topic_id, count: t.count })) };
+    setCache(cacheKey, payload);
+    return payload;
+  } catch (err) {
+    if (cached) return cached;
+    throw err;
+  }
 }
 
 export async function registerUser(payload) {
-  return apiPost('/api/auth/register', payload);
+  const { email, password, username } = payload;
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+  if (error) throw error;
+  if (data.user) {
+    const { error: profileError } = await supabase.from('users').insert({
+      id: data.user.id,
+      username,
+      email,
+    });
+    if (profileError) throw profileError;
+  }
+  return data;
 }
 
 export async function loginUser(payload) {
-  return apiPost('/api/auth/login', payload);
+  const { email, password } = payload;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
 }
 
 export async function fetchMyResults() {
-  return apiGetAuth('/api/results/me');
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) return { count: 0, results: [] };
+
+  const { data, error } = await supabase
+    .from('results')
+    .select('id, user_id, category_id, topic_id, score, total, percentage, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return { count: data.length, results: data };
 }
 
 export async function createResult(payload) {
-  return apiPostAuth('/api/results', payload);
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  const { categoryId, topicId, score, total } = payload;
+  const percentage = Math.round((score / total) * 100);
+  const { data, error } = await supabase.from('results').insert({
+    user_id: userId,
+    category_id: categoryId,
+    topic_id: topicId,
+    score,
+    total,
+    percentage,
+  });
+  if (error) throw error;
+  return data;
 }

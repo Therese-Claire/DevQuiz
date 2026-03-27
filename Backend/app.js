@@ -20,11 +20,9 @@ app.use(
 );
 app.use(express.json());
 
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/questions', require('./routes/question.routes'));
-app.use('/api/results', require('./routes/result.routes'));
-
-// Error handler (must be last)
-app.use(require('./middlewares/error.middleware'));
+// Minimal health endpoint (backend APIs have been replaced by Supabase direct access)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 module.exports = app;

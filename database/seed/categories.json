@@ -1,0 +1,8 @@
+[
+  { "id": "html", "name": "HTML", "icon": "🌐", "description": "Structure of the Web" },
+  { "id": "css", "name": "CSS", "icon": "🎨", "description": "Styling and Design" },
+  { "id": "js", "name": "JavaScript", "icon": "⚡", "description": "Logic and Interactivity" },
+  { "id": "python", "name": "Python", "icon": "🐍", "description": "Versatile Programming" },
+  { "id": "software", "name": "Software Practices", "icon": "🛠️", "description": "Clean Code & Patterns" },
+  { "id": "agile", "name": "Agile Methods", "icon": "🔄", "description": "Scrum & Kanban" }
+]

@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { loginUser, registerUser } from '../services/api';
 
 const Register = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -19,8 +17,7 @@ const Register = () => {
             setLoading(true);
             setError('');
             await registerUser({ username, email, password });
-            const data = await loginUser({ email, password });
-            login(data.user, data.token);
+            await loginUser({ email, password });
             navigate('/dashboard');
         } catch (err) {
             setError('Registration failed. Please try again.');

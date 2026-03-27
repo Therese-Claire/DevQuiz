@@ -1,26 +1,26 @@
 require('dotenv').config();
-const connectDB = require('../config/database');
-const User = require('../models/user');
 const bcrypt = require('bcrypt');
+const db = require('../config/db');
 
 async function seedAdmin() {
-  await connectDB();
-
   const username = process.env.ADMIN_USERNAME || 'admin';
   const password = process.env.ADMIN_PASSWORD || 'admin123';
+  const email = process.env.ADMIN_EMAIL || 'admin@example.com';
 
-  const existing = await User.findOne({ username });
-  if (existing) {
+  const existing = await db.query(
+    'select id from users where username = $1 or email = $2 limit 1',
+    [username, email]
+  );
+  if (existing.rows.length > 0) {
     console.log(`Admin user "${username}" already exists.`);
     process.exit(0);
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  await User.create({
-    username,
-    password: hashedPassword,
-    isAdmin: true,
-  });
+  await db.query(
+    'insert into users (username, email, password_hash, is_admin) values ($1, $2, $3, true)',
+    [username, email, hashedPassword]
+  );
 
   console.log(`Admin user "${username}" created.`);
   process.exit(0);

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '../services/supabase';
 
 const AuthContext = createContext(null);
 
@@ -7,34 +8,57 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check local storage for mock user session
-        const storedUser = localStorage.getItem('devquiz_user');
-        const storedToken = localStorage.getItem('devquiz_token');
-        if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            const hydratedUser = storedToken ? { ...parsedUser, token: storedToken } : parsedUser;
-            setUser(hydratedUser);
-        }
-        setLoading(false);
+        let isMounted = true;
+
+        const hydrateUser = async (sessionUser) => {
+            if (!sessionUser) {
+                setUser(null);
+                return;
+            }
+            const { data, error } = await supabase
+                .from('users')
+                .select('username, email, is_admin, total_score')
+                .eq('id', sessionUser.id)
+                .single();
+
+            const role = data?.is_admin ? 'admin' : 'user';
+            const hydrated = {
+                ...sessionUser,
+                username: data?.username,
+                email: data?.email || sessionUser.email,
+                isAdmin: data?.is_admin,
+                totalScore: data?.total_score,
+                role,
+            };
+            if (!error) setUser(hydrated);
+            if (error) setUser({ ...sessionUser, role: 'user' });
+        };
+
+        const init = async () => {
+            const { data } = await supabase.auth.getSession();
+            if (!isMounted) return;
+            await hydrateUser(data.session?.user || null);
+            setLoading(false);
+        };
+        init();
+
+        const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            await hydrateUser(session?.user || null);
+            setLoading(false);
+        });
+
+        return () => {
+            isMounted = false;
+            sub.subscription.unsubscribe();
+        };
     }, []);
 
-    const login = (userData, token) => {
-        const role = userData.isAdmin ? 'admin' : 'user';
-        const userWithRole = { ...userData, role, ...(token ? { token } : {}) };
-
-        setUser(userWithRole);
-        localStorage.setItem('devquiz_user', JSON.stringify(userWithRole));
-        if (token) localStorage.setItem('devquiz_token', token);
-    };
-
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem('devquiz_user');
-        localStorage.removeItem('devquiz_token');
+        supabase.auth.signOut();
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, logout, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/api';
+import AuthLayout from '../components/auth/AuthLayout';
+import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const navigate = useNavigate();
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [emailError, setEmailError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -17,15 +18,17 @@ const Login = () => {
         try {
             setLoading(true);
             setError('');
-            setEmailError('');
-            setPasswordError('');
-            await loginUser({ email, password });
+            const sanitizedEmail = email.trim().toLowerCase();
+            await loginUser({ email: sanitizedEmail, password: password });
             navigate('/dashboard');
         } catch (err) {
-            if (err.code === 'invalid_login_credentials') {
-                setError('Invalid email or password.');
+            console.error('Login error:', err);
+            if (err.status === 429) {
+                setError('Rate limit exceeded. Please try again later.');
+            } else if (err.code === 'invalid_login_credentials' || err.status === 400) {
+                setError('Invalid email or password. Please try again.');
             } else {
-                setError('Login failed. Please check your credentials.');
+                setError(err.message || 'Authentication failed. Check your network.');
             }
         } finally {
             setLoading(false);
@@ -33,101 +36,104 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden">
-            <div className="absolute top-16 left-8 w-80 h-80 bg-primary/20 rounded-full blur-[140px] -z-10" />
-            <div className="absolute bottom-20 right-6 w-96 h-96 bg-secondary/20 rounded-full blur-[160px] -z-10" />
-
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-                <div className="space-y-6">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-secondary text-sm tracking-wide">
-                        Welcome back
+        <AuthLayout 
+            title="Systems Login" 
+            subtitle="Enter your credentials to access your engineering profile."
+            alternativeAction={
+                <>
+                    Don't have an account?{' '}
+                    <Link to="/register" className="text-white font-bold hover:text-primary transition-colors">
+                        Register Now
+                    </Link>
+                </>
+            }
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-sm animate-shake">
+                        <AlertCircle size={18} />
+                        <span>{error}</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-white leading-tight">
-                        Pick up where you left off
-                    </h1>
-                    <p className="text-gray-400 text-lg leading-relaxed max-w-xl">
-                        Your streaks, badges, and leaderboard rank are waiting. Log in to keep building momentum.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[
-                            { title: 'Daily Streaks', desc: 'Stay consistent' },
-                            { title: 'Smart Feedback', desc: 'Learn faster' },
-                            { title: 'Live Rankings', desc: 'See your rank' },
-                        ].map((item) => (
-                            <div key={item.title} className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                                <div className="text-white font-semibold">{item.title}</div>
-                                <div className="text-gray-500 text-sm">{item.desc}</div>
-                            </div>
-                        ))}
+                )}
+
+                <div className="space-y-2">
+                    <label className="text-xs font-mono text-gray-400 uppercase tracking-widest ml-1">Email Terminal</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary transition-colors">
+                            <Mail size={18} />
+                        </div>
+                        <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-gray-600 text-sm font-medium"
+                            placeholder="engineer@devquiz.com"
+                        />
                     </div>
                 </div>
 
-                <div className="w-full">
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl">
-                        <div className="mb-6">
-                            <h2 className="text-3xl font-bold text-white">Sign in</h2>
-                            <p className="text-gray-400">Access your dashboard and results</p>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-gray-300 mb-2 text-sm font-medium">Email Address</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-gray-600"
-                                    placeholder="you@example.com"
-                                />
-                                {emailError && (
-                                    <p className="mt-2 text-sm text-red-400">{emailError}</p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 mb-2 text-sm font-medium">Password</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-gray-600"
-                                    placeholder="••••••••"
-                                />
-                                {passwordError && (
-                                    <p className="mt-2 text-sm text-red-400">{passwordError}</p>
-                                )}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(108,93,211,0.5)] transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Logging in...' : 'Login'}
-                            </button>
-                        </form>
-
-                        {error && (
-                            <div className="mt-4 text-center text-sm text-red-400">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="mt-6 text-center text-sm text-gray-400">
-                            Don&apos;t have an account?{' '}
-                            <Link to="/register" className="text-secondary hover:text-white transition-colors font-medium">
-                                Create one
-                            </Link>
-                        </div>
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                        <label className="text-xs font-mono text-gray-400 uppercase tracking-widest">Access Key</label>
+                        <button type="button" className="text-[10px] text-gray-500 hover:text-white uppercase tracking-wider transition-colors">Forgot Key?</button>
                     </div>
-
-                    <div className="mt-6 text-xs text-gray-500 text-center">
-                        Your progress is saved securely and only visible to you.
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-secondary transition-colors">
+                            <Lock size={18} />
+                        </div>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-12 py-4 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-gray-600 text-sm font-medium"
+                            placeholder="••••••••••••"
+                        />
+                        <button 
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-white transition-colors"
+                        >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
                     </div>
                 </div>
-            </div>
-        </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="group relative w-full py-4 bg-white text-black font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden shadow-xl shadow-white/5"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-secondary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {loading ? (
+                        <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                        <>
+                            <span>Initialize Session</span>
+                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        </>
+                    )}
+                </button>
+
+                <div className="relative py-4 flex items-center">
+                    <div className="flex-grow border-t border-white/5"></div>
+                    <span className="flex-shrink mx-4 text-[10px] font-mono text-gray-600 uppercase tracking-widest">or continue with</span>
+                    <div className="flex-grow border-t border-white/5"></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <button type="button" className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                        <Github size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">GitHub</span>
+                    </button>
+                    <button type="button" className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                        <Chrome size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Google</span>
+                    </button>
+                </div>
+            </form>
+        </AuthLayout>
     );
 };
 

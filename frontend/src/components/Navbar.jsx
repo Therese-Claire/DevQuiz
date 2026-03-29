@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { fetchMyResults } from '../services/api';
+import { Flame, Sun, Moon, LogOut, LayoutDashboard, Trophy } from 'lucide-react';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -38,53 +39,61 @@ const Navbar = () => {
     }, [user?.id]);
 
     return (
-        <nav className="fixed top-0 w-full z-50 px-6 py-4">
-            <div className="max-w-7xl mx-auto bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] px-6 py-3 flex justify-between items-center">
-                <Link to="/" className="flex items-center gap-2 group">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:shadow-primary/50 transition-all duration-300">
-                        D
+        <nav className="fixed top-0 w-full z-50 px-6 py-6 md:px-12">
+            <div className="max-w-7xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl px-6 py-4 flex justify-between items-center transition-all duration-500">
+                <Link to="/" className="flex items-center gap-3 group">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg group-hover:shadow-[0_0_20px_rgba(108,93,211,0.4)] transition-all duration-300">
+                        DQ
                     </div>
-                    <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                    <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-500 tracking-tighter">
                         DevQuiz
                     </span>
                 </Link>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 md:gap-8">
                     <button
                         onClick={toggleTheme}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-gray-500 dark:text-gray-300 transition-colors"
+                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all border border-white/5"
                         aria-label="Toggle Theme"
                     >
-                        {theme === 'dark' ? '☀️' : '🌙'}
+                        {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
 
                     {user ? (
-                        <>
-                            <Link to="/leaderboard" className="text-gray-300 hover:text-white transition-colors font-medium">
-                                Leaderboard
+                        <div className="flex items-center gap-4 md:gap-8">
+                            <Link to="/leaderboard" className="hidden md:flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-medium">
+                                <Trophy size={18} />
+                                <span>Ranks</span>
                             </Link>
-                            <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-xl bg-white/10 border border-white/10 text-gray-200 text-sm">
-                                <span className="text-secondary">ðŸ”¥</span>
-                                <span>{streakDays} day streak</span>
+                            
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-bold">
+                                <Flame size={16} fill="currentColor" />
+                                <span>{streakDays}</span>
                             </div>
-                            <span className="hidden md:block text-gray-300">Welcome, <span className="text-secondary font-semibold">{user.username}</span></span>
+
+                            <Link to="/dashboard" className="hidden lg:flex items-center gap-2 text-gray-300 hover:text-white font-medium transition-colors">
+                                <LayoutDashboard size={18} />
+                                <span>{user.username}</span>
+                            </Link>
+
                             <button
                                 onClick={handleLogout}
-                                className="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-xl transition-all duration-300 border border-white/10 font-medium"
+                                className="p-2 rounded-xl bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all border border-white/5"
+                                title="Logout"
                             >
-                                Logout
+                                <LogOut size={20} />
                             </button>
-                        </>
+                        </div>
                     ) : (
-                        <div className="flex gap-4">
-                            <Link to="/login" className="text-gray-300 hover:text-white transition-colors font-medium">
-                                Login
+                        <div className="flex items-center gap-3 md:gap-6">
+                            <Link to="/login" className="text-gray-400 hover:text-white transition-colors font-bold text-sm uppercase tracking-widest">
+                                Sign In
                             </Link>
                             <Link
                                 to="/register"
-                                className="bg-primary hover:bg-primary/80 text-white px-6 py-2 rounded-xl transition-all duration-300 shadow-lg hover:shadow-primary/30 font-medium"
+                                className="bg-white text-black px-6 py-2.5 rounded-xl transition-all duration-300 font-black text-sm uppercase tracking-widest hover:scale-105 active:scale-95 shadow-xl shadow-white/5"
                             >
-                                Register
+                                Get Started
                             </Link>
                         </div>
                     )}

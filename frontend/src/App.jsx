@@ -1,17 +1,16 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Profile from './pages/Profile';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Dashboard from './pages/Dashboard';
 import QuizPage from './pages/QuizPage';
 import ResultPage from './pages/ResultPage';
 import AdminDashboard from './pages/AdminDashboard';
 import CategoryPage from './pages/CategoryPage';
-import { useAuth } from './context/AuthContext';
 import NotAuthorized from './pages/NotAuthorized';
 import Leaderboard from './pages/Leaderboard';
 
@@ -52,11 +51,15 @@ const AdminRoute = ({ children }) => {
 };
 
 const App = () => {
+  const location = useLocation();
+  const hideNavbarPaths = ['/login', '/register'];
+  const shouldHideNavbar = hideNavbarPaths.includes(location.pathname);
+
   return (
     <ThemeProvider>
       <AuthProvider>
         <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-[#110e1b] dark:text-white transition-colors duration-300">
-          <Navbar />
+          {!shouldHideNavbar && <Navbar />}
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

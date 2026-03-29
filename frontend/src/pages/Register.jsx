@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser, registerUser } from '../services/api';
+import AuthLayout from '../components/auth/AuthLayout';
+import { User, Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 
 const Register = () => {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const navigate = useNavigate();
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -16,118 +19,142 @@ const Register = () => {
         try {
             setLoading(true);
             setError('');
-            await registerUser({ username, email, password });
-            await loginUser({ email, password });
+            const sanitizedEmail = email.trim().toLowerCase();
+            const sanitizedUsername = username.trim();
+
+            await registerUser({ username: sanitizedUsername, email: sanitizedEmail, password: password });
+            await loginUser({ email: sanitizedEmail, password: password });
             navigate('/dashboard');
         } catch (err) {
-            setError('Registration failed. Please try again.');
+            console.error('Registration error:', err);
+            if (err.status === 429) {
+                setError('Rate limit reached. Please wait a few minutes.');
+            } else if (err.code === 'email_address_invalid') {
+                setError('Invalid email address format.');
+            } else {
+                setError(err.message || 'Registration failed. Try a different username.');
+            }
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 px-4 relative overflow-hidden">
-            <div className="absolute top-10 right-10 w-80 h-80 bg-secondary/20 rounded-full blur-[140px] -z-10" />
-            <div className="absolute bottom-16 left-8 w-96 h-96 bg-primary/20 rounded-full blur-[160px] -z-10" />
-
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-                <div className="space-y-6 order-2 lg:order-1">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-secondary text-sm tracking-wide">
-                        Create your account
+        <AuthLayout 
+            title="Deploy Portfolio" 
+            subtitle="Begin your engineering journey and track your progression."
+            alternativeAction={
+                <>
+                    Already a member?{' '}
+                    <Link to="/login" className="text-white font-bold hover:text-secondary transition-colors">
+                        Sign In
+                    </Link>
+                </>
+            }
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                    <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-400 text-sm animate-shake">
+                        <AlertCircle size={18} />
+                        <span>{error}</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-white leading-tight">
-                        Start building your dev streak
-                    </h1>
-                    <p className="text-gray-400 text-lg leading-relaxed max-w-xl">
-                        Join DevQuiz and get daily practice, clear progress tracking, and badges that celebrate wins.
-                    </p>
-                    <div className="space-y-4">
-                        {[
-                            { title: 'Personalized stats', desc: 'Track accuracy, streaks, and topic mastery.' },
-                            { title: 'Curated quiz sets', desc: 'Take focused sets by difficulty.' },
-                            { title: 'Community energy', desc: 'Climb the leaderboard and compare progress.' },
-                        ].map((item) => (
-                            <div key={item.title} className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                                <div className="text-white font-semibold">{item.title}</div>
-                                <div className="text-gray-500 text-sm">{item.desc}</div>
-                            </div>
-                        ))}
+                )}
+
+                <div className="space-y-2">
+                    <label className="text-xs font-mono text-gray-400 uppercase tracking-widest ml-1">Engineering Handle</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-secondary transition-colors">
+                            <User size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            required
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-gray-600 text-sm font-medium"
+                            placeholder="e.g. LinusTorvalds"
+                        />
                     </div>
                 </div>
 
-                <div className="w-full order-1 lg:order-2">
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl">
-                        <div className="mb-6">
-                            <h2 className="text-3xl font-bold text-white">Create account</h2>
-                            <p className="text-gray-400">It only takes a minute</p>
+                <div className="space-y-2">
+                    <label className="text-xs font-mono text-gray-400 uppercase tracking-widest ml-1">Communication Channel</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-secondary transition-colors">
+                            <Mail size={18} />
                         </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-gray-300 mb-2 text-sm font-medium">Username</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all placeholder:text-gray-600"
-                                    placeholder="DevMaster"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 mb-2 text-sm font-medium">Email Address</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all placeholder:text-gray-600"
-                                    placeholder="you@example.com"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-gray-300 mb-2 text-sm font-medium">Password</label>
-                                <input
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all placeholder:text-gray-600"
-                                    placeholder="••••••••"
-                                />
-                                <div className="mt-2 text-xs text-gray-500">Use 8+ characters for a stronger password.</div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-4 bg-gradient-to-r from-secondary to-primary text-white font-bold rounded-xl hover:shadow-[0_0_20px_rgba(237,137,54,0.5)] transition-all duration-300 transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                {loading ? 'Creating...' : 'Create Account'}
-                            </button>
-                        </form>
-
-                        {error && (
-                            <div className="mt-4 text-center text-sm text-red-400">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="mt-6 text-center text-sm text-gray-400">
-                            Already have an account?{' '}
-                            <Link to="/login" className="text-primary hover:text-white transition-colors font-medium">
-                                Log in
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 text-xs text-gray-500 text-center">
-                        By creating an account, you agree to our terms and privacy policy.
+                        <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-gray-600 text-sm font-medium"
+                            placeholder="engineer@devquiz.com"
+                        />
                     </div>
                 </div>
-            </div>
-        </div>
+
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                        <label className="text-xs font-mono text-gray-400 uppercase tracking-widest">Master Key</label>
+                        <span className="text-[10px] text-gray-600 font-mono">8+ Characters</span>
+                    </div>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-secondary transition-colors">
+                            <Lock size={18} />
+                        </div>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl pl-12 pr-12 py-4 text-white focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary/50 transition-all placeholder:text-gray-600 text-sm font-medium"
+                            placeholder="••••••••••••"
+                        />
+                        <button 
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-white transition-colors"
+                        >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="group relative w-full py-4 bg-white text-black font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden shadow-xl shadow-white/5"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-secondary/10 to-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {loading ? (
+                        <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                        <>
+                            <span>Authorize Profile</span>
+                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        </>
+                    )}
+                </button>
+
+                <div className="relative py-4 flex items-center">
+                    <div className="flex-grow border-t border-white/5"></div>
+                    <span className="flex-shrink mx-4 text-[10px] font-mono text-gray-600 uppercase tracking-widest">or sign up with</span>
+                    <div className="flex-grow border-t border-white/5"></div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <button type="button" className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                        <Github size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">GitHub</span>
+                    </button>
+                    <button type="button" className="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                        <Chrome size={18} />
+                        <span className="text-xs font-bold uppercase tracking-wider">Google</span>
+                    </button>
+                </div>
+            </form>
+        </AuthLayout>
     );
 };
 

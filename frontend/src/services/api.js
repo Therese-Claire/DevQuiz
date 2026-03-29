@@ -160,36 +160,25 @@ export async function fetchCounts(categoryId) {
 }
 
 export async function registerUser(payload) {
-  const { email, password, username } = payload;
+  const email = payload.email?.trim().toLowerCase();
+  const password = payload.password; // Don't trim/lowercase passwords!
+  const username = payload.username?.trim();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        username,
+      },
+    },
   });
   if (error) throw error;
-  if (data.user) {
-    const { error: profileError } = await supabase.from('users').upsert({
-      id: data.user.id,
-      username,
-      email,
-    });
-    if (profileError) {
-      throw profileError;
-    }
-    const { data: profileCheck, error: checkError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id', data.user.id)
-      .single();
-    if (checkError || !profileCheck) {
-      await supabase.auth.admin.deleteUser(data.user.id);
-      throw new Error('Profile creation failed verification.');
-    }
-  }
   return data;
 }
 
 export async function loginUser(payload) {
-  const { email, password } = payload;
+  const email = payload.email?.trim().toLowerCase();
+  const password = payload.password;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;

@@ -8,19 +8,27 @@
 @theme {
   --font-sans: 'Inter', sans-serif;
   --color-primary: #6C5DD3;
+  --color-primary-glow: rgba(108, 93, 211, 0.3);
   --color-secondary: #FF754C;
-  --animate-fade-in-up: fadeInUp 0.5s ease-out forwards;
+  --color-secondary-glow: rgba(255, 117, 76, 0.3);
+  --color-background-dark: #0a0814;
+  --animate-reveal: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-float: float 6s ease-in-out infinite;
 
-  @keyframes fadeInUp {
+  @keyframes reveal {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(30px) scale(0.98);
     }
-
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
   }
 }
 
@@ -28,27 +36,32 @@
   body {
     font-family: var(--font-sans);
     @apply bg-gray-50 text-gray-900 min-h-screen selection:bg-secondary selection:text-white transition-colors duration-300;
-    background-color: var(--color-gray-50);
   }
 
   :root.dark body {
-    background-color: #110e1b;
+    background-color: var(--color-background-dark);
     color: white;
   }
 }
 
-/* Fallback for @apply in body specific to complex selectors if needed, but doing it simpler above */
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 25px var(--color-primary-glow);
+  }
+  .glow-secondary {
+    box-shadow: 0 0 25px var(--color-secondary-glow);
+  }
+  .text-glow {
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  }
+  .reveal-on-scroll {
+    opacity: 0;
+  }
+  .reveal-on-scroll.visible {
+    animation: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
 body {
-  @apply dark:bg-[#110e1b] dark:text-white;
+  @apply dark:bg-[#0a0814] dark:text-white;
 }
-
-/* Utilities */
-/* The animation keyframes are defined in the theme, but usage usually works via utility class if configured. 
-   Manually adding the class here as a backup if the theme config above doesn't auto-generate the utility name exactly as expected.
-*/
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
-}
-
-/* Web font import - kept at simple css import or in HTML head. Keeping here for now but usually top of file. */

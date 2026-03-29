@@ -21,36 +21,21 @@ export const AuthProvider = ({ children }) => {
                 .eq('id', sessionUser.id)
                 .single();
 
-            // If profile row is missing, create a minimal one
+            // If profile row is missing, handle gracefully (trigger should have created it)
             if (error) {
-                const fallbackUsername = sessionUser.email
-                    ? sessionUser.email.split('@')[0]
-                    : `user_${sessionUser.id.slice(0, 6)}`;
-                await supabase.from('users').upsert({
-                    id: sessionUser.id,
-                    email: sessionUser.email,
-                    username: fallbackUsername,
-                });
-                const retry = await supabase
-                    .from('users')
-                    .select('username, email, is_admin, total_score')
-                    .eq('id', sessionUser.id)
-                    .single();
-                data = retry.data;
-                error = retry.error;
+                console.warn('Profile sync delay or error:', error.message);
             }
 
             const role = data?.is_admin ? 'admin' : 'user';
             const hydrated = {
                 ...sessionUser,
-                username: data?.username,
+                username: data?.username || sessionUser.email?.split('@')[0] || 'User',
                 email: data?.email || sessionUser.email,
-                isAdmin: data?.is_admin,
-                totalScore: data?.total_score,
+                isAdmin: !!data?.is_admin,
+                totalScore: data?.total_score || 0,
                 role,
             };
-            if (!error) setUser(hydrated);
-            if (error) setUser({ ...sessionUser, role: 'user' });
+            setUser(hydrated);
         };
 
         const init = async () => {

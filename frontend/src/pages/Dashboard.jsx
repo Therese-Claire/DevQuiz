@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { categories as displayCategories } from '../data/quizMetaData';
-import { fetchMetadata, fetchQuizSets } from '../services/api';
+import { fetchMetadata, fetchQuizSets, fetchMyResults } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { computeStreak, computeTopicPerformance } from '../utils/stats';
+import NotificationFeed from '../components/dashboard/NotificationFeed';
 import { 
     LayoutDashboard, 
     BookOpen, 
@@ -39,14 +41,16 @@ const Dashboard = () => {
     const { user } = useAuth();
     const [categories, setCategories] = useState([]);
     const [quizSets, setQuizSets] = useState([]);
+    const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
     const [setsLoading, setSetsLoading] = useState(true);
+    const [resultsLoading, setResultsLoading] = useState(true);
     const [error, setError] = useState('');
-    const [setsError, setSetsError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         let isMounted = true;
+        
         const loadMetadata = async () => {
             try {
                 setLoading(true);
@@ -77,17 +81,31 @@ const Dashboard = () => {
                 const data = await fetchQuizSets();
                 if (isMounted) {
                     setQuizSets(data || []);
-                    setSetsError('');
                 }
             } catch (err) {
-                if (isMounted) setSetsError('Failed to load tactical sets.');
+                console.error('Sets load failure');
             } finally {
                 if (isMounted) setSetsLoading(false);
             }
         };
 
+        const loadResults = async () => {
+            try {
+                setResultsLoading(true);
+                const { results: data } = await fetchMyResults();
+                if (isMounted) {
+                    setResults(data || []);
+                }
+            } catch (err) {
+                console.error('Results load failure');
+            } finally {
+                if (isMounted) setResultsLoading(false);
+            }
+        };
+
         loadMetadata();
         loadQuizSets();
+        loadResults();
         return () => { isMounted = false; };
     }, []);
 
@@ -97,7 +115,54 @@ const Dashboard = () => {
         );
     }, [categories, searchQuery]);
 
-    const featuredSet = useMemo(() => quizSets[0], [quizSets]);
+    const stats = useMemo(() => {
+        const streak = computeStreak(results);
+        const performance = computeTopicPerformance(results);
+        
+        // Find top 3 milestones (categories with best < 100%)
+        const milestones = Object.entries(performance)
+            .map(([key, data]) => ({
+                label: `${data.categoryId.toUpperCase()} Mastery`,
+                progress: data.best,
+                color: data.best > 70 ? 'bg-secondary' : 'bg-primary'
+            }))
+            .filter(m => m.progress < 100)
+            .slice(0, 3);
+
+        // Fallback milestones if user has few results
+        if (milestones.length < 2) {
+            milestones.push({ label: 'System Design Badge', progress: 0, color: 'bg-primary' });
+            milestones.push({ label: 'Logic Fundamental', progress: 0, color: 'bg-orange-500' });
+        }
+
+        // Recommendation: pick category with lowest best score or one never tried
+        const triedCategories = new Set(results.map(r => r.category_id));
+        const untried = categories.find(c => !triedCategories.has(c.id));
+        
+        let recommendation = null;
+        if (untried) {
+            recommendation = { 
+                title: `Explore ${untried.name}`, 
+                desc: untried.description,
+                id: untried.id,
+                type: 'category'
+            };
+        } else {
+            const weakest = Object.values(performance).sort((a, b) => a.best - b.best)[0];
+            if (weakest) {
+                recommendation = {
+                    title: `Optimize ${weakest.categoryId.toUpperCase()}`,
+                    desc: `Critical focus required on ${weakest.topicId}. Current best: ${weakest.best}%`,
+                    id: weakest.categoryId,
+                    type: 'category'
+                };
+            }
+        }
+
+        return { streak, milestones, recommendation };
+    }, [results, categories]);
+
+    const isFullySyncing = loading || resultsLoading || setsLoading;
 
     return (
         <div className="min-h-screen pt-24 pb-20 bg-[#0a0814] relative overflow-hidden selection:bg-primary selection:text-white">
@@ -110,25 +175,25 @@ const Dashboard = () => {
                 <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 animate-reveal">
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 w-fit text-gray-500 text-[10px] font-mono tracking-widest uppercase">
-                            <Activity size={10} className="text-secondary animate-pulse" />
-                            <span>System Operational</span>
+                            <Activity size={10} className={`${isFullySyncing ? 'text-secondary animate-pulse' : 'text-green-500'}`} />
+                            <span>{isFullySyncing ? 'Syncing Tactical Data' : 'All Systems Nominal'}</span>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
                             Command <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-white to-secondary">Center</span>
                         </h1>
                         <p className="text-gray-400 font-medium">
-                            Welcome back, <span className="text-white font-bold">{user?.username || 'Engineer'}</span>. Syncing your progress...
+                            Welcome back, <span className="text-white font-bold">{user?.username || 'Engineer'}</span>. {isFullySyncing ? 'Synchronizing your progress...' : 'Protocols fully synchronized.'}
                         </p>
                     </div>
 
                     <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-2xl backdrop-blur-md">
                         <div className="flex items-center gap-2 px-4 py-2 bg-black/20 rounded-xl border border-white/5">
                             <Flame size={16} className="text-orange-500" />
-                            <span className="text-white font-bold text-sm">3 Day Streak</span>
+                            <span className="text-white font-bold text-sm">{stats.streak} Day Streak</span>
                         </div>
                         <div className="flex items-center gap-2 px-4 py-2 bg-black/20 rounded-xl border border-white/5">
                             <Trophy size={16} className="text-yellow-500" />
-                            <span className="text-white font-bold text-sm">1,240 XP</span>
+                            <span className="text-white font-bold text-sm">{user?.totalScore?.toLocaleString() || 0} XP</span>
                         </div>
                     </div>
                 </header>
@@ -153,7 +218,7 @@ const Dashboard = () => {
                             className="w-full h-full bg-[#0a0814]/90 rounded-[14px] px-6 py-4 flex items-center justify-between group-hover:bg-transparent transition-colors"
                         >
                             <div className="text-left">
-                                <div className="text-white font-black text-xl">Top 5%</div>
+                                <div className="text-white font-black text-xl">Top {100 - (user?.percentile || 0)}%</div>
                                 <div className="text-gray-400 text-[10px] uppercase font-mono tracking-wider group-hover:text-white/80">Global Rank</div>
                             </div>
                             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:rotate-12 transition-transform">
@@ -261,7 +326,7 @@ const Dashboard = () => {
 
                     {/* Right Column: Profile & Sidebar */}
                     <aside className="lg:col-span-4 space-y-10 animate-reveal [animation-delay:300ms]">
-                        {/* Daily Challenge Card */}
+                        {/* Dynamic Recommendation Card */}
                         <div className="relative group">
                             <div className="absolute -inset-0.5 bg-gradient-to-r from-primary via-secondary to-primary rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
                             <div className="relative bg-[#0d0b1a] border border-white/5 rounded-[2.5rem] p-10 overflow-hidden">
@@ -270,38 +335,44 @@ const Dashboard = () => {
                                 </div>
                                 <div className="relative z-10">
                                     <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-widest w-fit mb-6">
-                                        Recommended
+                                        Suggested Mission
                                     </div>
-                                    <h3 className="text-3xl font-black text-white mb-2 leading-tight">Master <br/>Backend Ops</h3>
-                                    <p className="text-gray-400 mb-8 max-w-[200px] text-sm leading-relaxed">System design and scalability tests for senior engineers.</p>
+                                    <h3 className="text-3xl font-black text-white mb-2 leading-tight">
+                                        {stats.recommendation?.title || 'Master Backend Ops'}
+                                    </h3>
+                                    <p className="text-gray-400 mb-8 max-w-[200px] text-sm leading-relaxed">
+                                        {stats.recommendation?.desc || 'Deep dive into system design and scalability protocols.'}
+                                    </p>
                                     
                                     <button 
-                                        onClick={() => featuredSet && navigate(`/quiz-set/${featuredSet.id}`)}
+                                        onClick={() => stats.recommendation?.type === 'category' 
+                                            ? navigate(`/category/${stats.recommendation.id}`)
+                                            : navigate(`/dashboard`)
+                                        }
                                         className="flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white font-black rounded-2xl w-full hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20"
                                     >
-                                        <span>Begin Operation</span>
+                                        <span>Initialize Mission</span>
                                         <Zap size={18} fill="currentColor" />
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Recent Activity Mini-Card */}
+                        {/* Recent Signal Stream */}
+                        <NotificationFeed />
+
+                        {/* Dynamic Milestones */}
                         <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
                             <h3 className="text-lg font-black text-white mb-6 flex items-center gap-3">
                                 <Clock size={20} className="text-gray-500" />
                                 Upcoming Milestones
                             </h3>
                             <div className="space-y-6">
-                                {[
-                                    { label: 'System Design Badge', progress: 85, color: 'bg-primary' },
-                                    { label: 'Node.js Mastery', progress: 40, color: 'bg-secondary' },
-                                    { label: 'DevOps Fundamental', progress: 15, color: 'bg-orange-500' },
-                                ].map((item) => (
+                                {stats.milestones.map((item) => (
                                     <div key={item.label}>
                                         <div className="flex justify-between text-xs font-mono uppercase tracking-widest text-gray-400 mb-2">
                                             <span>{item.label}</span>
-                                            <span className="text-white">{item.progress}%</span>
+                                            <span className="text-white">{Math.round(item.progress)}%</span>
                                         </div>
                                         <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                             <div 
@@ -311,8 +382,10 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 ))}
+                                {stats.milestones.length === 0 && (
+                                    <p className="text-gray-600 text-[10px] font-mono italic">Execute missions to unlock milestones.</p>
+                                )}
                             </div>
-                            <button className="w-full mt-8 py-3 text-xs font-mono text-gray-500 hover:text-white uppercase tracking-[0.2em] transition-colors">View All Progress &gt;</button>
                         </div>
                     </aside>
                 </div>

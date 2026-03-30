@@ -11,44 +11,61 @@ export const AuthProvider = ({ children }) => {
         let isMounted = true;
 
         const hydrateUser = async (sessionUser) => {
-            if (!sessionUser) {
-                setUser(null);
-                return;
-            }
-            let { data, error } = await supabase
-                .from('users')
-                .select('username, email, is_admin, total_score')
-                .eq('id', sessionUser.id)
-                .single();
+            try {
+                if (!sessionUser) {
+                    setUser(null);
+                    return;
+                }
+                const [{ data: profile, error: profileError }, stats] = await Promise.all([
+                    supabase.from('users').select('username, email, is_admin').eq('id', sessionUser.id).single(),
+                    supabase.rpc('get_user_stats', { user_uuid: sessionUser.id })
+                ]);
 
-            // If profile row is missing, handle gracefully (trigger should have created it)
-            if (error) {
-                console.warn('Profile sync delay or error:', error.message);
-            }
+                if (profileError) {
+                    console.warn('Profile sync delay:', profileError.message);
+                }
 
-            const role = data?.is_admin ? 'admin' : 'user';
-            const hydrated = {
-                ...sessionUser,
-                username: data?.username || sessionUser.email?.split('@')[0] || 'User',
-                email: data?.email || sessionUser.email,
-                isAdmin: !!data?.is_admin,
-                totalScore: data?.total_score || 0,
-                role,
-            };
-            setUser(hydrated);
+                const statsData = stats.data || {};
+                const role = profile?.is_admin ? 'admin' : 'user';
+                const hydrated = {
+                    ...sessionUser,
+                    username: profile?.username || sessionUser.email?.split('@')[0] || 'User',
+                    email: profile?.email || sessionUser.email,
+                    isAdmin: !!profile?.is_admin,
+                    totalScore: statsData.score || 0,
+                    percentile: statsData.percentile || 0,
+                    rank: statsData.rank || 0,
+                    role,
+                };
+                setUser(hydrated);
+            } catch (err) {
+                console.error('Core auth hydration failure:', err);
+                setUser(sessionUser ? { ...sessionUser, role: 'user' } : null);
+            }
         };
 
         const init = async () => {
-            const { data } = await supabase.auth.getSession();
-            if (!isMounted) return;
-            await hydrateUser(data.session?.user || null);
-            setLoading(false);
+            try {
+                const { data } = await supabase.auth.getSession();
+                if (isMounted) {
+                    await hydrateUser(data.session?.user || null);
+                }
+            } catch (err) {
+                console.error('Auth initialization error:', err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
         };
         init();
 
         const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            await hydrateUser(session?.user || null);
-            setLoading(false);
+            try {
+                await hydrateUser(session?.user || null);
+            } catch (err) {
+                console.error('Auth state change error:', err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
         });
 
         return () => {
@@ -63,7 +80,18 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <AuthContext.Provider value={{ user, logout, loading }}>
-            {!loading && children}
+            {loading ? (
+                <div className="min-h-screen bg-[#0a0814] flex items-center justify-center p-6">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 border-4 border-white/10 border-t-primary rounded-full animate-spin" />
+                        <div className="text-gray-500 font-mono text-xs uppercase tracking-[0.3em] animate-pulse">
+                            Initializing Protocol
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                children
+            )}
         </AuthContext.Provider>
     );
 };

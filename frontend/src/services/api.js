@@ -283,10 +283,13 @@ export async function reportQuestion({ questionId, reason }) {
   if (error) throw error;
 }
 
-export async function fetchAdminAnalytics({ since } = {}) {
-  const { data, error } = await supabase.rpc('get_admin_analytics', {
-    p_since: since || null,
-  });
+export async function fetchUserStats() {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase.rpc('get_user_stats', { user_uuid: userId });
   if (error) throw error;
-  return data || [];
+  return data;
 }

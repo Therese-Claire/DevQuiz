@@ -26,18 +26,15 @@ const ResultPage = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    if (!state) {
-        return <Navigate to="/dashboard" />;
-    }
-
-    const { score, total, category, topic, categoryId, topicId } = state;
-    const percentage = Math.round((score / total) * 100);
+    const { score, total, category, topic, categoryId, topicId } = state || {};
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
     const canSave = Boolean(categoryId && topicId);
 
     const isSuccess = percentage >= 80;
     const isPass = percentage >= 50;
 
     useEffect(() => {
+        if (!state) return;
         if (!canSave) return;
         if (hasPostedRef.current) return;
         hasPostedRef.current = true;
@@ -51,7 +48,11 @@ const ResultPage = () => {
                 setSaveError('Failed to synchronize mission data.');
             })
             .finally(() => setSaving(false));
-    }, [canSave, categoryId, topicId, score, total]);
+    }, [state, canSave, categoryId, topicId, score, total]);
+
+    if (!state) {
+        return <Navigate to="/dashboard" />;
+    }
 
     const handleRetrySave = () => {
         if (!canSave) return;

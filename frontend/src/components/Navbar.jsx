@@ -1,9 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useTheme } from '../context/ThemeContext';
 import { fetchMyResults } from '../services/api';
-import { Flame, Sun, Moon, LogOut, LayoutDashboard, Trophy } from 'lucide-react';
+import { 
+    LayoutDashboard, 
+    Trophy, 
+    Settings, 
+    LogOut, 
+    Menu, 
+    X,
+    Bell,
+    User,
+    ChevronDown,
+    Zap,
+    Flame, 
+    Sun, 
+    Moon 
+} from 'lucide-react';
 import { computeStreak } from '../utils/stats';
 
 const Navbar = () => {

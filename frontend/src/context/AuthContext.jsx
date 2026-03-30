@@ -1,81 +1,79 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const hydrateUser = async (sessionUser) => {
+        if (!sessionUser) {
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+        try {
+            const { data: profile } = await supabase
+                .from('users')
+                .select('username, email, is_admin')
+                .eq('id', sessionUser.id)
+                .single();
+
+            let statsData = {};
+            try {
+                const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_stats', { user_uuid: sessionUser.id });
+                if (!rpcError) statsData = rpcData || {};
+            } catch (_) { /* non-critical */ }
+
+            setUser({
+                ...sessionUser,
+                username: profile?.username || sessionUser.email?.split('@')[0] || 'User',
+                email: profile?.email || sessionUser.email,
+                isAdmin: !!profile?.is_admin,
+                totalScore: statsData.score || 0,
+                percentile: statsData.percentile || 0,
+                rank: statsData.rank || 0,
+                role: profile?.is_admin ? 'admin' : 'user',
+            });
+        } catch (err) {
+            console.error('Auth hydration error:', err);
+            setUser({ ...sessionUser, role: 'user', username: sessionUser.email?.split('@')[0] });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         let isMounted = true;
+        let initialized = false;
 
-        const hydrateUser = async (sessionUser) => {
-            try {
-                if (!sessionUser) {
-                    setUser(null);
-                    return;
-                }
-                const [{ data: profile, error: profileError }, stats] = await Promise.all([
-                    supabase.from('users').select('username, email, is_admin').eq('id', sessionUser.id).single(),
-                    supabase.rpc('get_user_stats', { user_uuid: sessionUser.id })
-                ]);
-
-                if (profileError) {
-                    console.warn('Profile sync delay:', profileError.message);
-                }
-
-                const statsData = stats.data || {};
-                const role = profile?.is_admin ? 'admin' : 'user';
-                const hydrated = {
-                    ...sessionUser,
-                    username: profile?.username || sessionUser.email?.split('@')[0] || 'User',
-                    email: profile?.email || sessionUser.email,
-                    isAdmin: !!profile?.is_admin,
-                    totalScore: statsData.score || 0,
-                    percentile: statsData.percentile || 0,
-                    rank: statsData.rank || 0,
-                    role,
-                };
-                setUser(hydrated);
-            } catch (err) {
-                console.error('Core auth hydration failure:', err);
-                setUser(sessionUser ? { ...sessionUser, role: 'user' } : null);
+        // Safety timeout: always exit loading after 5s even if Supabase hangs
+        const safetyTimer = setTimeout(() => {
+            if (isMounted && !initialized) {
+                console.warn('Auth init timed out – forcing ready state');
+                setLoading(false);
             }
-        };
+        }, 5000);
 
-        const init = async () => {
-            try {
-                const { data } = await supabase.auth.getSession();
-                if (isMounted) {
-                    await hydrateUser(data.session?.user || null);
-                }
-            } catch (err) {
-                console.error('Auth initialization error:', err);
-            } finally {
-                if (isMounted) setLoading(false);
-            }
-        };
-        init();
-
-        const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            try {
-                await hydrateUser(session?.user || null);
-            } catch (err) {
-                console.error('Auth state change error:', err);
-            } finally {
-                if (isMounted) setLoading(false);
-            }
+        // onAuthStateChange fires FIRST with the current session (INITIAL_SESSION event)
+        // This is the recommended Supabase pattern – no need for a separate getSession call
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (!isMounted) return;
+            initialized = true;
+            clearTimeout(safetyTimer);
+            await hydrateUser(session?.user || null);
         });
 
         return () => {
             isMounted = false;
-            sub.subscription.unsubscribe();
+            clearTimeout(safetyTimer);
+            subscription.unsubscribe();
         };
     }, []);
 
-    const logout = () => {
-        supabase.auth.signOut();
+    const logout = async () => {
+        await supabase.auth.signOut();
     };
 
     return (
@@ -95,5 +93,3 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
-
-export const useAuth = () => useContext(AuthContext);

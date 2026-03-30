@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchLeaderboard, fetchMetadata } from '../services/api';
 import { categories as displayCategories, topicsByCategory as displayTopics } from '../data/quizMetaData';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { 
     Trophy, 
     Star, 

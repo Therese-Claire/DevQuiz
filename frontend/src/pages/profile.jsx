@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { fetchMyResults } from "../services/api";
 import { supabase } from "../services/supabase";
 import { categories, topicsByCategory } from "../data/quizMetaData";

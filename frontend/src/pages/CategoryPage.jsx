@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { categories as displayCategories, topicsByCategory as displayTopics } from '../data/quizMetaData';
-import { fetchMetadata, fetchCounts } from '../services/api';
+import { fetchMetadata, fetchCounts, fetchCategoryStats, fetchTopicMastery } from '../services/api';
 import { 
     ArrowLeft, 
     ChevronRight, 
@@ -34,6 +34,7 @@ const CategoryPage = () => {
     const { categoryId } = useParams();
     const navigate = useNavigate();
     const [topics, setTopics] = useState([]);
+    const [categoryStats, setCategoryStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -41,18 +42,27 @@ const CategoryPage = () => {
 
     useEffect(() => {
         let isMounted = true;
-        const loadMetadata = async () => {
+        const loadCategoryData = async () => {
             try {
                 setLoading(true);
-                const [meta, countsResp] = await Promise.all([
+                const [meta, countsResp, stats, mastery] = await Promise.all([
                     fetchMetadata(),
                     fetchCounts(categoryId),
+                    fetchCategoryStats(categoryId),
+                    fetchTopicMastery(categoryId)
                 ]);
+
                 const backendTopics = meta.topicsByCategory?.[categoryId] || [];
                 const countsByTopic = (countsResp.counts || []).reduce((acc, t) => {
                     acc[t.topicId] = t.count;
                     return acc;
                 }, {});
+
+                const masteryMap = (mastery || []).reduce((acc, m) => {
+                    acc[m.topic_id] = { bestScore: m.best_score, attempts: m.attempts };
+                    return acc;
+                }, {});
+
                 const merged = backendTopics.map((t) => {
                     const display = displayTopics[categoryId]?.find((d) => d.id === t.topicId);
                     return display || {
@@ -63,20 +73,27 @@ const CategoryPage = () => {
                 }).map((t) => ({
                     ...t,
                     count: countsByTopic[t.id] || 0,
+                    mastery: masteryMap[t.id] || { bestScore: 0, attempts: 0 }
                 }));
+
                 if (isMounted) {
                     setTopics(merged);
+                    setCategoryStats(stats);
                     setError('');
                 }
             } catch (err) {
-                if (isMounted) setError('Failed to synchronize mission topics.');
+                console.error('Category data sync error:', err);
+                if (isMounted) setError('Failed to synchronize mission telemetry.');
             } finally {
                 if (isMounted) setLoading(false);
             }
         };
-        if (categoryId) loadMetadata();
+        if (categoryId) loadCategoryData();
         return () => { isMounted = false; };
     }, [categoryId]);
+
+    const avgScore = categoryStats?.avgScore || 0;
+    const isHighVolatility = (categoryStats?.totalMissions || 0) < 5;
 
     if (!category) {
         return (
@@ -139,15 +156,20 @@ const CategoryPage = () => {
                         </div>
                         <div className="hidden lg:flex flex-col gap-3 p-6 bg-black/20 rounded-3xl border border-white/5 min-w-[200px]">
                             <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-                                <span>Average Score</span>
-                                <span className="text-white">84%</span>
+                                <span>Average Accuracy</span>
+                                <span className="text-white">{avgScore}%</span>
                             </div>
                             <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary w-[84%] shadow-[0_0_10px_rgba(108,93,211,0.5)]" />
+                                <div 
+                                    className="h-full bg-primary transition-all duration-1000 shadow-[0_0_10px_rgba(108,93,211,0.5)]" 
+                                    style={{ width: `${avgScore}%` }}
+                                />
                             </div>
                             <div className="flex items-center gap-2 mt-2">
-                                <Activity size={12} className="text-secondary animate-pulse" />
-                                <span className="text-[10px] font-bold text-white uppercase tracking-widest">High Volatility</span>
+                                <Activity size={12} className={isHighVolatility ? "text-orange-400 animate-pulse" : "text-green-400"} />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                                    {isHighVolatility ? 'High Volatility' : 'System Stable'}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -178,8 +200,16 @@ const CategoryPage = () => {
                                         <div className="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-full -mr-10 -mt-10 blur-3xl group-hover:bg-secondary/20 transition-all duration-700" />
                                         
                                         <div className="relative z-10 flex items-start justify-between">
-                                            <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/5 text-[10px] font-mono font-bold text-gray-400 group-hover:text-white group-hover:border-secondary/30 transition-all">
-                                                {topic.count || 0} Questions
+                                            <div className="flex flex-col gap-2">
+                                                <div className="px-3 py-1 rounded-full bg-black/40 border border-white/5 text-[9px] font-mono font-bold text-gray-400 group-hover:text-white transition-all w-fit">
+                                                    {topic.count || 0} Questions
+                                                </div>
+                                                {topic.mastery?.bestScore > 0 && (
+                                                    <div className="px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-[9px] font-mono font-bold text-secondary group-hover:bg-secondary/20 transition-all w-fit flex items-center gap-1">
+                                                        <Trophy size={10} />
+                                                        <span>Best: {topic.mastery.bestScore}%</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-500">
                                                 <ChevronRight size={18} className="text-white" />
@@ -207,10 +237,27 @@ const CategoryPage = () => {
                             <div className="absolute top-0 right-0 p-8 text-secondary/5 group-hover:text-secondary/10 transition-colors">
                                 <Target size={80} />
                             </div>
+                            
                             <h3 className="text-xl font-black text-white mb-8 flex items-center gap-3">
                                 <Info size={20} className="text-primary" />
                                 Mission Prep
                             </h3>
+
+                            {categoryStats?.latestResult && categoryStats.latestResult.score !== null && (
+                                <div className="mb-8 p-6 bg-primary/5 border border-primary/20 rounded-3xl">
+                                    <div className="text-[10px] font-mono text-primary uppercase tracking-[0.2em] mb-2">Latest Signal</div>
+                                    <div className="flex items-end justify-between">
+                                        <div className="text-3xl font-black text-white">{categoryStats.latestResult.score}%</div>
+                                        <div className="text-[10px] font-mono text-gray-500">
+                                            {categoryStats.latestResult.date ? new Date(categoryStats.latestResult.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 h-1 bg-white/5 rounded-full overflow-hidden">
+                                        <div className="h-full bg-primary" style={{ width: `${categoryStats.latestResult.score}%` }} />
+                                    </div>
+                                </div>
+                            )}
+
                             <ul className="space-y-6">
                                 {[
                                     { icon: <Clock size={16} />, text: 'Target 2 minutes per complex problem.' },

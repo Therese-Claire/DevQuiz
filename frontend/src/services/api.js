@@ -269,6 +269,34 @@ export async function fetchLeaderboard({ categoryId, topicId, since } = {}) {
   return data || [];
 }
 
+export async function fetchCategoryStats(categoryId) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase.rpc('get_category_stats', {
+    p_user_id: userId,
+    p_category_id: categoryId
+  });
+  if (error) throw error;
+  return data || null;
+}
+
+export async function fetchTopicMastery(categoryId) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase.rpc('get_topic_mastery', {
+    p_user_id: userId,
+    p_category_id: categoryId
+  });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function reportQuestion({ questionId, reason }) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;

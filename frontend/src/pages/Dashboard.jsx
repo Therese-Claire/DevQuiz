@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { categories as displayCategories } from '../data/quizMetaData';
 import { fetchMetadata, fetchQuizSets, fetchMyResults } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { computeStreak, computeTopicPerformance } from '../utils/stats';
 import NotificationFeed from '../components/dashboard/NotificationFeed';
 import { 

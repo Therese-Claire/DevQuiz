@@ -31,7 +31,7 @@ export async function fetchQuestions(params = {}) {
 
     let query = supabase
       .from('questions')
-      .select('id, category_id, topic_id, question, options, correct_answer', { count: 'exact' })
+      .select('id, category_id, topic_id, question, options', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -269,6 +269,32 @@ export async function fetchLeaderboard({ categoryId, topicId, since } = {}) {
   return data || [];
 }
 
+export async function validateAnswer(questionId, userAnswer) {
+  const { data, error } = await supabase.rpc('validate_answer', {
+    p_question_id: questionId,
+    p_user_answer: userAnswer,
+  });
+  if (error) throw error;
+  return data; // { is_correct: boolean, correct_answer: string }
+}
+
+export async function createQuizSetResult({ setId, score, total }) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  const percentage = Math.round((score / total) * 100);
+  const { error } = await supabase.from('quiz_set_results').insert({
+    user_id: userId,
+    quiz_set_id: setId,
+    score,
+    total,
+    percentage,
+  });
+  if (error) throw error;
+}
+
 export async function fetchCategoryStats(categoryId) {
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
@@ -320,4 +346,76 @@ export async function fetchUserStats() {
   const { data, error } = await supabase.rpc('get_user_stats', { user_uuid: userId });
   if (error) throw error;
   return data;
+}
+
+export async function uploadAvatar(file) {
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    throw new Error('Only JPG, PNG, WebP, or GIF images are allowed.');
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error('Image must be smaller than 2 MB.');
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  // Always overwrite the same path so no orphan files accumulate
+  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/gif' ? 'gif' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `${userId}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+  const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`; // cache-busting
+
+  const { error: rpcError } = await supabase.rpc('update_avatar_url', {
+    p_user_id: userId,
+    p_url: publicUrl,
+  });
+  if (rpcError) throw rpcError;
+
+  return publicUrl;
+}
+
+export async function updateUsername(newUsername) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) throw new Error('Not authenticated');
+
+  const { error } = await supabase.rpc('update_username', {
+    p_user_id: userId,
+    p_username: newUsername,
+  });
+  if (error) throw error;
+}
+
+export async function fetchUserLeaderboardRank({ categoryId, topicId, since } = {}) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
+  const userId = userData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase.rpc('get_user_leaderboard_rank', {
+    p_user_id: userId,
+    p_category_id: categoryId || null,
+    p_topic_id: topicId || null,
+    p_since: since || null,
+  });
+  if (error) throw error;
+  return data; // { rank, total_users, score, avg, percentile }
+}
+
+export async function fetchLeaderboardMeta() {
+  const { data, error } = await supabase.rpc('get_leaderboard_meta');
+  if (error) throw error;
+  return data; // { total_xp, top_category }
 }

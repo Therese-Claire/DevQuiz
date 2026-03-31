@@ -80,6 +80,11 @@ const Navbar = () => {
                                 <Trophy size={18} />
                                 <span>Ranks</span>
                             </Link>
+
+                            <Link to="/profile" className="hidden md:flex items-center gap-2 text-gray-400 hover:text-white transition-colors font-medium">
+                                <User size={18} />
+                                <span>Profile</span>
+                            </Link>
                             
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary text-sm font-bold">
                                 <Flame size={16} fill="currentColor" />

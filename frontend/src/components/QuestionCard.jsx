@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import { reportQuestion } from '../services/api';
+import React from 'react';
 import { 
     AlertCircle, 
-    CheckCircle2, 
+    CheckCircle2,
+    XCircle,
     Flag, 
     Send, 
     X, 
-    ChevronRight,
     MessageSquareWarning,
-    Activity
+    Activity,
+    Loader2
 } from 'lucide-react';
+import { useState } from 'react';
+import { reportQuestion } from '../services/api';
 
-const QuestionCard = ({ questionData, selectedAnswer, onSelectAnswer }) => {
+const QuestionCard = ({ questionData, selectedAnswer, onSelectAnswer, isRevealed, correctAnswer, isValidating }) => {
     const [showReport, setShowReport] = useState(false);
     const [reason, setReason] = useState('');
     const [reportStatus, setReportStatus] = useState('');
@@ -32,17 +34,60 @@ const QuestionCard = ({ questionData, selectedAnswer, onSelectAnswer }) => {
         }
     };
 
+    const getOptionStyle = (option) => {
+        if (!isRevealed) {
+            // Pre-reveal: normal selection highlighting
+            const isSelected = selectedAnswer === option;
+            return isSelected
+                ? 'bg-primary/20 border-primary text-white shadow-[0_0_30px_rgba(108,93,211,0.2)]'
+                : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20';
+        }
+        // Post-reveal: show correct/wrong states
+        if (option === correctAnswer) {
+            return 'bg-green-500/20 border-green-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.2)]';
+        }
+        if (option === selectedAnswer && option !== correctAnswer) {
+            return 'bg-red-500/20 border-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.2)]';
+        }
+        return 'bg-white/3 border-white/5 text-gray-600 opacity-50';
+    };
+
+    const getBadgeStyle = (option) => {
+        if (!isRevealed) {
+            const isSelected = selectedAnswer === option;
+            return isSelected
+                ? 'bg-primary border-primary text-white scale-110'
+                : 'bg-black/20 border-white/10 text-gray-500 group-hover/option:text-white group-hover/option:border-white/30';
+        }
+        if (option === correctAnswer) return 'bg-green-500 border-green-500 text-white';
+        if (option === selectedAnswer) return 'bg-red-500 border-red-500 text-white';
+        return 'bg-black/20 border-white/10 text-gray-600';
+    };
+
+    const getRevealIcon = (option) => {
+        if (!isRevealed) {
+            return selectedAnswer === option ? <CheckCircle2 size={24} className="text-primary animate-reveal" /> : null;
+        }
+        if (option === correctAnswer) return <CheckCircle2 size={22} className="text-green-400 shrink-0" />;
+        if (option === selectedAnswer) return <XCircle size={22} className="text-red-400 shrink-0" />;
+        return null;
+    };
+
     return (
         <div className="w-full max-w-3xl mx-auto animate-reveal">
             <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 md:p-12 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
-                {/* Decorative background element */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                 
                 <div className="flex items-center gap-3 mb-8">
                     <div className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                        <Activity size={16} className="animate-pulse" />
+                        {isValidating 
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : <Activity size={16} className={isRevealed ? '' : 'animate-pulse'} />
+                        }
                     </div>
-                    <span className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">Active Objective</span>
+                    <span className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">
+                        {isValidating ? 'Validating...' : isRevealed ? 'Objective Analysed' : 'Active Objective'}
+                    </span>
                 </div>
 
                 <h3 className="text-2xl md:text-3xl font-black text-white mb-10 leading-[1.4] tracking-tight">
@@ -50,40 +95,30 @@ const QuestionCard = ({ questionData, selectedAnswer, onSelectAnswer }) => {
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4">
-                    {questionData.options.map((option, index) => {
-                        const isSelected = selectedAnswer === option;
-                        return (
-                            <button
-                                key={index}
-                                onClick={() => onSelectAnswer(option)}
-                                className={`
-                                    group/option relative p-6 rounded-2xl text-left transition-all duration-300 border flex items-center gap-5
-                                    ${isSelected
-                                        ? 'bg-primary/20 border-primary text-white shadow-[0_0_30px_rgba(108,93,211,0.2)]'
-                                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:border-white/20'
-                                    }
-                                `}
-                            >
-                                <div className={`
-                                    w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-sm font-mono font-bold border transition-all duration-300
-                                    ${isSelected
-                                        ? 'bg-primary border-primary text-white scale-110'
-                                        : 'bg-black/20 border-white/10 text-gray-500 group-hover/option:text-white group-hover/option:border-white/30'
-                                    }
-                                `}>
-                                    {String.fromCharCode(65 + index)}
-                                </div>
-                                <span className="font-semibold text-lg flex-grow">{option}</span>
-                                {isSelected && (
-                                    <div className="text-primary animate-reveal">
-                                        <CheckCircle2 size={24} />
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
+                    {questionData.options.map((option, index) => (
+                        <button
+                            key={index}
+                            onClick={() => !isRevealed && !isValidating && onSelectAnswer(option)}
+                            disabled={isRevealed || isValidating}
+                            className={`
+                                group/option relative p-6 rounded-2xl text-left transition-all duration-300 border flex items-center gap-5
+                                ${getOptionStyle(option)}
+                                ${(isRevealed || isValidating) ? 'cursor-default' : 'cursor-pointer'}
+                            `}
+                        >
+                            <div className={`
+                                w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-sm font-mono font-bold border transition-all duration-300
+                                ${getBadgeStyle(option)}
+                            `}>
+                                {String.fromCharCode(65 + index)}
+                            </div>
+                            <span className="font-semibold text-lg flex-grow">{option}</span>
+                            {getRevealIcon(option)}
+                        </button>
+                    ))}
                 </div>
 
+                {/* Report section */}
                 <div className="mt-10 flex items-center justify-between border-t border-white/5 pt-8">
                     <button
                         onClick={() => setShowReport(!showReport)}
@@ -122,8 +157,8 @@ const QuestionCard = ({ questionData, selectedAnswer, onSelectAnswer }) => {
                             onChange={(e) => setReason(e.target.value)}
                         />
                         <div className="flex justify-between items-center mt-5">
-                             {reportStatus && <span className="text-[10px] font-mono text-secondary uppercase italic">{reportStatus}</span>}
-                             <div className="flex-grow" />
+                            {reportStatus && <span className="text-[10px] font-mono text-secondary uppercase italic">{reportStatus}</span>}
+                            <div className="flex-grow" />
                             <button
                                 onClick={submitReport}
                                 disabled={!reason.trim() || isReporting}

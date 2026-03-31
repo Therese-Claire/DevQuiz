@@ -118,26 +118,40 @@ const Dashboard = () => {
     const stats = useMemo(() => {
         const streak = computeStreak(results);
         const performance = computeTopicPerformance(results);
-        
-        // Find top 3 milestones (categories with best < 100%)
-        const milestones = Object.entries(performance)
-            .map(([key, data]) => ({
-                label: `${data.categoryId.toUpperCase()} Mastery`,
-                progress: data.best,
-                color: data.best > 70 ? 'bg-secondary' : 'bg-primary'
+
+        // Group performance by CATEGORY (not individual topic)
+        // so "Software Practices" shows as ONE bar, not one per topic
+        const categoryPerformance = {};
+        Object.values(performance).forEach(data => {
+            const catId = data.categoryId;
+            if (!categoryPerformance[catId]) {
+                categoryPerformance[catId] = { total: 0, count: 0, best: data.best };
+            }
+            categoryPerformance[catId].total += data.best;
+            categoryPerformance[catId].count += 1;
+            categoryPerformance[catId].best = Math.max(categoryPerformance[catId].best, data.best);
+        });
+
+        // Find the display name for each category
+        const getCategoryLabel = (catId) => {
+            const display = displayCategories.find(d => d.id === catId);
+            return display?.name || catId.toUpperCase();
+        };
+
+        // Build milestones: one per category, show average progress
+        const milestones = Object.entries(categoryPerformance)
+            .map(([catId, data]) => ({
+                label: `${getCategoryLabel(catId)} Mastery`,
+                progress: Math.round(data.total / data.count), // average score across topics
+                color: data.best >= 80 ? 'bg-secondary' : 'bg-primary'
             }))
             .filter(m => m.progress < 100)
+            .sort((a, b) => b.progress - a.progress)
             .slice(0, 3);
 
-        // Fallback milestones if user has few results
-        if (milestones.length < 2) {
-            milestones.push({ label: 'System Design Badge', progress: 0, color: 'bg-primary' });
-            milestones.push({ label: 'Logic Fundamental', progress: 0, color: 'bg-orange-500' });
-        }
-
-        // Recommendation: pick category with lowest best score or one never tried
+        // Recommendation: pick category with lowest avg score or one never tried
         const triedCategories = new Set(results.map(r => r.category_id));
-        const untried = categories.find(c => !triedCategories.has(c.id));
+        const untried = displayCategories.find(c => !triedCategories.has(c.id));
         
         let recommendation = null;
         if (untried) {
@@ -148,12 +162,14 @@ const Dashboard = () => {
                 type: 'category'
             };
         } else {
-            const weakest = Object.values(performance).sort((a, b) => a.best - b.best)[0];
-            if (weakest) {
+            const weakestCat = Object.entries(categoryPerformance)
+                .sort(([, a], [, b]) => (a.total / a.count) - (b.total / b.count))[0];
+            if (weakestCat) {
+                const [catId, data] = weakestCat;
                 recommendation = {
-                    title: `Optimize ${weakest.categoryId.toUpperCase()}`,
-                    desc: `Critical focus required on ${weakest.topicId}. Current best: ${weakest.best}%`,
-                    id: weakest.categoryId,
+                    title: `Optimize ${getCategoryLabel(catId)}`,
+                    desc: `Average mastery at ${Math.round(data.total / data.count)}%. Continue training to improve.`,
+                    id: catId,
                     type: 'category'
                 };
             }
@@ -161,6 +177,7 @@ const Dashboard = () => {
 
         return { streak, milestones, recommendation };
     }, [results, categories]);
+
 
     const isFullySyncing = loading || resultsLoading || setsLoading;
 

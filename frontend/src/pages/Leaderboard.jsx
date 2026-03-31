@@ -1,25 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { fetchLeaderboard, fetchMetadata } from '../services/api';
+import React, { useEffect, useState } from 'react';
+import { fetchLeaderboard, fetchMetadata, fetchUserLeaderboardRank, fetchLeaderboardMeta } from '../services/api';
 import { categories as displayCategories, topicsByCategory as displayTopics } from '../data/quizMetaData';
 import { useAuth } from '../context/useAuth';
 import { 
-    Trophy, 
-    Star, 
-    Crown, 
-    Filter, 
-    Download, 
-    Search, 
-    User, 
-    Globe, 
-    Activity,
-    ChevronDown,
-    ChevronRight,
-    FileJson,
-    FileSpreadsheet,
-    Loader2,
-    ShieldAlert,
-    Timer,
-    Zap
+    Trophy, Star, Crown, Filter, Download, Search, User, 
+    Globe, Activity, ChevronDown, ChevronRight, FileJson, 
+    FileSpreadsheet, Loader2, ShieldAlert, Timer, Zap
 } from 'lucide-react';
 
 const timeTabs = [
@@ -28,16 +14,22 @@ const timeTabs = [
     { label: 'Monthly', value: '30' },
 ];
 
-const Leaderboard = () => {
+export default function Leaderboard() {
     const { user } = useAuth();
     const [categoryId, setCategoryId] = useState('');
     const [topicId, setTopicId] = useState('');
     const [timeFilter, setTimeFilter] = useState('all');
+    
+    // Core data state
     const [rows, setRows] = useState([]);
+    const [userStats, setUserStats] = useState(null);
+    const [metaStats, setMetaStats] = useState({ total_xp: 0, top_category: 'Loading...' });
+    
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [availableTopics, setAvailableTopics] = useState([]);
 
+    // 1. Topic dropdown population
     useEffect(() => {
         const loadTopics = async () => {
             try {
@@ -56,7 +48,9 @@ const Leaderboard = () => {
         else setAvailableTopics([]);
     }, [categoryId]);
 
+    // 2. Fetch Leaderboard, User Rank, and Ecosystem Meta
     useEffect(() => {
+        let isMounted = true;
         const load = async () => {
             setLoading(true);
             setError('');
@@ -64,23 +58,50 @@ const Leaderboard = () => {
                 const since = timeFilter === 'all' 
                     ? null 
                     : new Date(Date.now() - Number(timeFilter) * 24 * 60 * 60 * 1000).toISOString();
-                const data = await fetchLeaderboard({ categoryId, topicId, since });
-                setRows(data);
+                
+                const filterParams = { categoryId, topicId, since };
+                
+                // Fetch independently in parallel
+                const [leaderboardData, userRankData, metaData] = await Promise.all([
+                    fetchLeaderboard(filterParams),
+                    fetchUserLeaderboardRank(filterParams),
+                    fetchLeaderboardMeta()
+                ]);
+
+                if (isMounted) {
+                    setRows(leaderboardData || []);
+                    setUserStats(userRankData || null);
+                    if (metaData) setMetaStats(metaData);
+                }
             } catch (e) {
-                setError('Failed to establish connection to global rankings.');
+                if (isMounted) setError('Failed to establish connection to global rankings.');
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
         load();
+        
+        return () => { isMounted = false; };
     }, [categoryId, topicId, timeFilter]);
 
-    const userRank = useMemo(() => {
-        if (!user?.id || rows.length === 0) return null;
-        const idx = rows.findIndex((r) => r.user_id === user.id);
-        if (idx === -1) return null;
-        return idx + 1;
-    }, [rows, user?.id]);
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    const formatNumber = (num) => {
+        if (!num) return '0';
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toLocaleString();
+    };
+
+    const getSectorDisplay = (id) => {
+        return displayCategories.find(c => c.id === id)?.name || id || 'Global';
+    };
+
+    const getTopicDisplay = (catId, tId) => {
+        return displayTopics[catId]?.find(t => t.id === tId)?.name || tId || 'All Objectives';
+    };
+
+    // ── Exports ──────────────────────────────────────────────────────────────
 
     const exportJson = () => {
         const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
@@ -123,17 +144,24 @@ const Leaderboard = () => {
 
             <div className="max-w-7xl mx-auto px-6 lg:px-10">
                 
-                {/* Header Section */}
+                {/* ── Header Section ──────────────────────────────────────── */}
                 <div className="relative mb-12 animate-reveal">
                     <div className="relative bg-white/5 border border-white/10 rounded-[3rem] p-8 md:p-12 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-10">
                         <div className="flex flex-col md:flex-row items-center gap-10">
-                            <div className="w-24 h-24 shrink-0 rounded-[2.5rem] bg-black/40 border border-white/10 flex items-center justify-center shadow-inner group transition-all duration-700">
+                            <div className="w-24 h-24 shrink-0 rounded-[2.5rem] bg-black/40 border border-white/10 flex items-center justify-center shadow-inner">
                                 <Globe size={40} className="text-secondary animate-pulse" />
                             </div>
                             <div className="space-y-4 text-center md:text-left">
                                 <div className="flex items-center justify-center md:justify-start gap-3">
-                                    <span className="px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-bold uppercase tracking-[0.2em]">Global Network</span>
-                                    <span className="text-gray-600 font-mono text-xs tracking-widest uppercase">{rows.length} Active Profiles</span>
+                                    <span className="px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary text-[10px] font-bold uppercase tracking-[0.2em]">
+                                        Global Network
+                                    </span>
+                                    {/* Number of rows is now max 50, but userStats.total_users has the true ecosystem size within the filter */}
+                                    {userStats && (
+                                        <span className="text-gray-600 font-mono text-xs tracking-widest uppercase">
+                                            {formatNumber(userStats.total_users)} Active Profiles
+                                        </span>
+                                    )}
                                 </div>
                                 <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
                                     Ranking <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-500 opacity-50">Protocol</span>
@@ -141,21 +169,32 @@ const Leaderboard = () => {
                             </div>
                         </div>
 
-                        {userRank && (
-                            <div className="flex flex-col items-center md:items-end gap-3 min-w-[200px] p-6 bg-primary/10 rounded-[2rem] border border-primary/20 shadow-[0_0_30px_rgba(108,93,211,0.1)]">
-                                <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">Your Tactical Standings</div>
-                                <div className="text-4xl font-black text-white flex items-baseline gap-2">
-                                    <span className="text-primary text-2xl">#</span>{userRank}
-                                </div>
-                                <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Global Percentile: Top {( (userRank / rows.length) * 100).toFixed(1)}%</div>
+                        {/* Personal tactical standings */}
+                        <div className="flex flex-col items-center md:items-end gap-3 min-w-[200px] p-6 bg-primary/10 rounded-[2rem] border border-primary/20 shadow-[0_0_30px_rgba(108,93,211,0.1)]">
+                            <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary">
+                                Your Tactical Standings
                             </div>
-                        )}
+                            {loading ? (
+                                <Loader2 size={32} className="text-primary animate-spin my-2" />
+                            ) : userStats ? (
+                                <>
+                                    <div className="text-4xl font-black text-white flex items-baseline gap-2">
+                                        <span className="text-primary text-2xl">#</span>{userStats.rank}
+                                    </div>
+                                    <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
+                                        {categoryId ? "Sector" : "Global"} Percentile: Top {Math.max(1, Math.round(100 - userStats.percentile))}%
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-sm font-bold text-gray-500 mt-2">Unranked in this sector</div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                     
-                    {/* Filters & Export */}
+                    {/* ── Filters & Export ────────────────────────────────── */}
                     <div className="lg:col-span-12 flex flex-wrap items-center justify-between gap-6 animate-reveal [animation-delay:100ms]">
                         <div className="flex flex-wrap items-center gap-4">
                             <div className="flex p-1.5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl">
@@ -216,7 +255,7 @@ const Leaderboard = () => {
                         </div>
                     </div>
 
-                    {/* Leaderboard Table */}
+                    {/* ── Leaderboard Table ───────────────────────────────── */}
                     <div className="lg:col-span-12 animate-reveal [animation-delay:200ms]">
                         <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden backdrop-blur-xl relative">
                             {/* Table Header */}
@@ -229,7 +268,7 @@ const Leaderboard = () => {
 
                             <div className="max-h-[800px] overflow-y-auto no-scrollbar pb-10">
                                 {loading ? (
-                                    Array(5).fill(0).map((_, i) => (
+                                    Array(7).fill(0).map((_, i) => (
                                         <div key={i} className="px-10 py-8 border-b border-white/5 flex items-center gap-10">
                                             <div className="w-10 h-10 bg-white/5 rounded-xl animate-pulse" />
                                             <div className="flex-1 space-y-3">
@@ -255,7 +294,7 @@ const Leaderboard = () => {
                                         <p className="text-gray-500 text-sm max-w-xs">Try adjusting your filters to broaden the search parameters.</p>
                                     </div>
                                 ) : (
-                                    rows.slice(0, 50).map((r, idx) => {
+                                    rows.map((r, idx) => {
                                         const isCurrentUser = r.user_id === user?.id;
                                         const rank = idx + 1;
                                         return (
@@ -265,6 +304,7 @@ const Leaderboard = () => {
                                                     ${isCurrentUser ? 'bg-primary/10 border-primary/20 relative z-10 shadow-[0_0_30px_rgba(108,93,211,0.1)]' : ''}
                                                 `}
                                             >
+                                                {/* Rank Column */}
                                                 <div className="col-span-1 flex items-center">
                                                     {rank === 1 ? (
                                                         <div className="w-8 h-8 rounded-lg bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]">
@@ -285,31 +325,46 @@ const Leaderboard = () => {
                                                     )}
                                                 </div>
                                                 
+                                                {/* User Info Column */}
                                                 <div className="col-span-5 md:col-span-6 flex items-center gap-5">
-                                                    <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform
-                                                        ${isCurrentUser ? 'bg-primary/20 border-primary/40 text-primary' : 'bg-black/40 border-white/10 text-gray-500'}
+                                                    <div className={`w-12 h-12 rounded-xl flex items-center overflow-hidden justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform
+                                                        ${isCurrentUser ? 'bg-primary/20 border border-primary/40 text-primary' : 'bg-black/40 border border-white/10 text-gray-500'}
                                                     `}>
-                                                        <User size={20} />
+                                                        {r.avatar_url ? (
+                                                            <img src={r.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <User size={20} />
+                                                        )}
                                                     </div>
                                                     <div className="truncate">
                                                         <div className="text-white font-black tracking-tight group-hover:text-primary transition-colors flex items-center gap-2">
                                                             <span>{r.username || 'Anonymous Engineer'}</span>
                                                             {isCurrentUser && <span className="px-2 py-0.5 rounded-full bg-primary text-white text-[8px] font-black uppercase tracking-widest">You</span>}
                                                         </div>
-                                                        <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">Profile UID: {r.user_id.slice(0, 8)}...</div>
+                                                        <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-1">
+                                                            Profile UID: {r.user_id.slice(0, 8)}...
+                                                        </div>
                                                     </div>
                                                 </div>
 
+                                                {/* Sector Column */}
                                                 <div className="col-span-3 md:col-span-3 text-right">
-                                                    <div className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest truncate">{r.category_id || 'Global'}</div>
-                                                    <div className="text-xs font-bold text-gray-600 truncate">{r.topic_id || 'Special Ops'}</div>
+                                                    <div className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest truncate">
+                                                        {getSectorDisplay(r.category_id)}
+                                                    </div>
+                                                    <div className="text-xs font-bold text-gray-600 truncate">
+                                                        {getTopicDisplay(r.category_id, r.topic_id)}
+                                                    </div>
                                                 </div>
 
+                                                {/* Score Column */}
                                                 <div className="col-span-3 md:col-span-2 text-right space-y-1">
-                                                    <div className={`text-2xl font-black  ${rank <= 3 ? 'text-secondary font-glow' : 'text-white'}`}>
+                                                    <div className={`text-2xl font-black ${rank <= 3 ? 'text-secondary font-glow' : 'text-white'}`}>
                                                         {r.avg_percentage}%
                                                     </div>
-                                                    <div className="text-[10px] font-mono font-bold text-gray-600 uppercase tracking-widest">{r.total_score} Total Pts</div>
+                                                    <div className="text-[10px] font-mono font-bold text-gray-600 uppercase tracking-widest">
+                                                        {r.total_score.toLocaleString()} Total Pts
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -319,7 +374,7 @@ const Leaderboard = () => {
                         </div>
                     </div>
 
-                    {/* Meta stats footer */}
+                    {/* ── Meta Stats Footer ───────────────────────────────── */}
                     <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6 animate-reveal [animation-delay:300ms]">
                         <div className="bg-white/5 border border-white/5 rounded-3xl p-8 flex items-center justify-between">
                             <div className="flex items-center gap-4">
@@ -341,7 +396,9 @@ const Leaderboard = () => {
                                 </div>
                                 <div>
                                     <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Total XP Moved</div>
-                                    <div className="text-white font-black uppercase tracking-widest">14.2M</div>
+                                    <div className="text-white font-black uppercase tracking-widest">
+                                        {formatNumber(metaStats.total_xp)}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -353,7 +410,9 @@ const Leaderboard = () => {
                                 </div>
                                 <div>
                                     <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-1">Top Sector</div>
-                                    <div className="text-white font-black uppercase tracking-widest">Backend Ops</div>
+                                    <div className="text-white font-black uppercase tracking-widest truncate max-w-[120px]">
+                                        {getSectorDisplay(metaStats.top_category)}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -368,6 +427,4 @@ const Leaderboard = () => {
             `}} />
         </div>
     );
-};
-
-export default Leaderboard;
+}
